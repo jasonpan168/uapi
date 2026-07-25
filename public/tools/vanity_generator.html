@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>本地钱包靓号生成器 (EVM)</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --card: #ffffff;
+      --line: #d9e2ef;
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #0ea5e9;
+      --ok: #059669;
+      --warn: #d97706;
+      --danger: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 20px;
+      background: radial-gradient(circle at top right, #e0f2fe 0%, var(--bg) 58%);
+      color: var(--text);
+      font-family: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; }
+    .title { font-size: 28px; margin: 0; }
+    .sub { margin-top: 8px; color: var(--muted); line-height: 1.7; }
+    .sec {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(2, 6, 23, 0.05);
+      padding: 14px;
+    }
+    .sec h3 { margin: 0 0 10px; font-size: 18px; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .rule-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    .pair-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .row { margin-bottom: 10px; }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid #c7d2e5;
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 13px;
+      background: #fff;
+      color: #0f172a;
+      outline: none;
+    }
+    textarea { min-height: 86px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { border-color: #7dd3fc; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12); }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .checkline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+    .checkline input {
+      width: auto;
+      margin: 0;
+      transform: translateY(-1px);
+    }
+    .rule-estimate {
+      margin-top: 8px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      border-radius: 10px;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .rule-est-item {
+      border: 1px solid #dbeafe;
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 8px;
+    }
+    .rule-est-item .k { font-size: 12px; color: #64748b; }
+    .rule-est-item .v {
+      margin-top: 3px;
+      font-size: 14px;
+      font-weight: 800;
+      color: #0f172a;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .danger-note {
+      border: 1px solid #fed7aa;
+      background: #fff7ed;
+      color: #9a3412;
+      border-radius: 10px;
+      font-size: 12px;
+      line-height: 1.7;
+      padding: 9px 10px;
+      margin-top: 8px;
+    }
+    .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 9px 12px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-stop { background: #ef4444; color: #fff; }
+    .btn-light { background: #e2e8f0; color: #0f172a; }
+    .status-hero {
+      background: linear-gradient(135deg, #0b1220 0%, #0f1f3a 100%);
+      border: 1px solid #1e3a5f;
+      color: #e2e8f0;
+    }
+    .status-big-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .status-mini-grid {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .metric {
+      border: 1px solid rgba(148, 163, 184, .3);
+      background: rgba(15, 23, 42, .62);
+      border-radius: 10px;
+      padding: 10px 11px;
+    }
+    .metric .k { font-size: 12px; color: #94a3b8; }
+    .metric .v { margin-top: 3px; font-size: 16px; font-weight: 800; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .metric .v.big { font-size: 20px; }
+    .status-note {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.6;
+    }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .danger { color: var(--danger); }
+    .result-box {
+      margin-top: 10px;
+      border: 1px solid #c8d5ea;
+      border-radius: 12px;
+      overflow: auto;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      border-bottom: 1px solid #e2e8f0;
+      padding: 8px;
+      font-size: 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f8fafc; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; word-break: break-all; }
+    .log {
+      border: 1px solid #1e293b;
+      background: #0b1220;
+      color: #cbd5e1;
+      border-radius: 10px;
+      min-height: 90px;
+      max-height: 220px;
+      overflow: auto;
+      padding: 8px;
+      font-size: 12px;
+      line-height: 1.6;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .time-table { margin-top: 8px; }
+    .time-table td, .time-table th { font-size: 12px; }
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .rule-grid { grid-template-columns: 1fr; }
+      .pair-grid { grid-template-columns: 1fr; }
+      .rule-estimate { grid-template-columns: 1fr; }
+      .status-big-grid { grid-template-columns: 1fr 1fr; }
+      .status-mini-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="title">本地钱包靓号生成器 (EVM)</h1>
+  <div class="sub">本工具在你的浏览器本地计算，不依赖服务器生成地址。支持自定义尾号、尾号多联（N连）、前缀组合、并行多线程与预计时间评估。</div>
+
+  <div class="sec status-hero">
+    <h3>实时状态看板</h3>
+    <div class="status-big-grid">
+      <div class="metric"><div class="k">状态</div><div class="v big" id="runState">未运行</div></div>
+      <div class="metric"><div class="k">当前速度 (addr/s)</div><div class="v big" id="speedVal">0</div></div>
+      <div class="metric"><div class="k">运行时长</div><div class="v big" id="elapsedVal">00:00:00</div></div>
+      <div class="metric"><div class="k">已尝试地址</div><div class="v big" id="triesVal">0</div></div>
+    </div>
+    <div class="status-mini-grid">
+      <div class="metric"><div class="k">已命中数量</div><div class="v" id="foundVal">0</div></div>
+      <div class="metric"><div class="k">计算模式</div><div class="v" id="modeVal">待机</div></div>
+      <div class="metric"><div class="k">CPU 逻辑线程</div><div class="v" id="cpuVal">-</div></div>
+      <div class="metric"><div class="k">设备内存(GB)</div><div class="v" id="memVal">-</div></div>
+      <div class="metric"><div class="k">GPU 加速</div><div class="v" id="gpuVal">未启用</div></div>
+      <div class="metric"><div class="k">页面协议</div><div class="v" id="protoVal">-</div></div>
+      <div class="metric"><div class="k">理论成功概率</div><div class="v" id="probVal">-</div></div>
+      <div class="metric"><div class="k">平均预计耗时</div><div class="v" id="etaVal">-</div></div>
+    </div>
+    <div class="status-note">计算说明：默认使用本机 CPU（Web Worker 或主线程）。可选 GPU(Mac实验) 为混合加速模式，需 WebGPU 与 http/https 环境。</div>
+  </div>
+
+  <div class="sec">
+    <h3>生成规则</h3>
+    <div class="rule-grid">
+      <div>
+        <div class="row">
+          <label>链类型</label>
+          <select id="chainSelect">
+            <option value="evm">EVM (ETH / BSC / Polygon / Base ...)</option>
+          </select>
+          <div class="hint">当前版本先支持 EVM 地址 (0x...)</div>
+        </div>
+
+        <div class="row">
+          <label>计算后端模式</label>
+          <select id="backendMode">
+            <option value="auto">Auto（推荐）</option>
+            <option value="cpu">CPU</option>
+            <option value="gpu_mac">GPU (Mac 实验)</option>
+          </select>
+          <div class="hint">GPU(Mac) 需 WebGPU + http/https；不可用会自动回退 CPU。</div>
+        </div>
+
+        <div class="row">
+          <label>前缀 (可选，不含 0x)</label>
+          <input id="prefixInput" placeholder="例如 abc 或 88" maxlength="12">
+          <div class="hint">前缀越长，难度指数级上升。只允许 0-9 a-f</div>
+        </div>
+
+        <div class="row">
+          <label>定制尾号 (可多个，逗号分隔)</label>
+          <input id="suffixInput" placeholder="例如 8888,6666,520" maxlength="80">
+          <div class="hint">匹配你填写的任一尾号。只允许 0-9 a-f</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="row">
+          <label class="checkline"><input type="checkbox" id="repeatEnable"> 启用尾号 N 连</label>
+          <div class="pair-grid">
+            <div>
+              <label>N 值</label>
+              <input id="repeatLen" type="number" min="2" max="12" value="5">
+            </div>
+            <div>
+              <label>连号字符 (可空)</label>
+              <input id="repeatChar" placeholder="例如 8 或 f (留空=任意字符N连)" maxlength="1">
+            </div>
+          </div>
+          <div class="hint">示例: N=6 且字符=8 -> 匹配尾号 ...888888；若字符留空 -> 任意字符 6 连（如 ...aaaaaa / ...333333）</div>
+          <div class="hint" style="margin-top:6px;">
+            <label class="checkline" style="margin-bottom:2px;">
+              <input type="checkbox" id="combineAny">
+              定制尾号 + N连 使用“任一命中”(OR)
+            </label>
+            默认关闭。关闭时：如果你填了定制尾号，只按定制尾号匹配，不会被 N连误命中。
+          </div>
+        </div>
+
+        <div class="row">
+          <label>目标命中数量</label>
+          <input id="targetCount" type="number" min="1" max="20" value="1">
+        </div>
+
+        <div class="row">
+          <label>并行线程数（Web Worker）</label>
+          <input id="workerCount" type="number" min="1" max="32" value="4">
+          <div class="hint">建议设为 CPU 逻辑核心数的 50%~100%。线程过高会因调度开销降低效率。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="danger-note">
+      安全提示：命中后会显示私钥。请立即离线保存，勿截图传播，勿在不可信机器运行。建议将资金转移到新的冷钱包后再长期使用。
+    </div>
+    <div class="rule-estimate">
+      <div class="rule-est-item">
+        <div class="k">即时估算尝试次数</div>
+        <div class="v" id="instantTries">-</div>
+      </div>
+      <div class="rule-est-item">
+        <div class="k">即时估算耗时</div>
+        <div class="v" id="instantEta">-</div>
+      </div>
+      <div class="rule-est-item">
+        <div class="k">估算基准速度(addr/s)</div>
+        <div class="v" id="instantBaseSpeed">-</div>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button id="startBtn" class="btn-primary">开始生成</button>
+      <button id="stopBtn" class="btn-stop" disabled>停止</button>
+      <button id="clearBtn" class="btn-light">清空结果</button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h3>概率与时间估算</h3>
+    <div class="hint" id="ruleSummary" style="margin-top:4px;">请先填写规则。</div>
+
+    <table class="time-table" style="width:100%; border-collapse: collapse; margin-top:8px;">
+      <thead>
+      <tr>
+        <th>示例配置</th>
+        <th>理论尝试次数(平均)</th>
+        <th>按当前算力预估</th>
+      </tr>
+      </thead>
+      <tbody id="exampleBody"></tbody>
+    </table>
+
+    <div class="hint" style="margin-top:8px;">
+      说明：上面是统计平均值，实际命中是随机过程，可能更快或更慢；通常可按 2x~5x 平均时间做预算。
+    </div>
+  </div>
+
+  <div class="sec">
+    <h3>命中结果</h3>
+    <div class="result-box">
+      <table>
+        <thead>
+        <tr>
+          <th>#</th>
+          <th>地址</th>
+          <th>私钥</th>
+          <th>命中时间</th>
+        </tr>
+        </thead>
+        <tbody id="resultBody">
+        <tr><td colspan="4" class="hint">暂无命中</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h3>运行日志</h3>
+    <div id="logBox" class="log"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const prefixInput = document.getElementById('prefixInput');
+  const suffixInput = document.getElementById('suffixInput');
+  const backendModeInput = document.getElementById('backendMode');
+  const repeatEnable = document.getElementById('repeatEnable');
+  const repeatLen = document.getElementById('repeatLen');
+  const repeatChar = document.getElementById('repeatChar');
+  const combineAny = document.getElementById('combineAny');
+  const workerCountInput = document.getElementById('workerCount');
+  const targetCountInput = document.getElementById('targetCount');
+
+  const runState = document.getElementById('runState');
+  const triesVal = document.getElementById('triesVal');
+  const speedVal = document.getElementById('speedVal');
+  const elapsedVal = document.getElementById('elapsedVal');
+  const foundVal = document.getElementById('foundVal');
+  const modeVal = document.getElementById('modeVal');
+  const cpuVal = document.getElementById('cpuVal');
+  const memVal = document.getElementById('memVal');
+  const gpuVal = document.getElementById('gpuVal');
+  const protoVal = document.getElementById('protoVal');
+  const probVal = document.getElementById('probVal');
+  const etaVal = document.getElementById('etaVal');
+  const instantTries = document.getElementById('instantTries');
+  const instantEta = document.getElementById('instantEta');
+  const instantBaseSpeed = document.getElementById('instantBaseSpeed');
+  const ruleSummary = document.getElementById('ruleSummary');
+  const exampleBody = document.getElementById('exampleBody');
+  const resultBody = document.getElementById('resultBody');
+  const logBox = document.getElementById('logBox');
+
+  let workers = [];
+  let mainLoopTimer = null;
+  let running = false;
+  let totalTries = 0;
+  let totalFound = 0;
+  let runStartedAt = 0;
+  let speedWindow = [];
+  let lastProgressAt = 0;
+  let lastHeartbeatAt = 0;
+  let heartbeatTimer = null;
+  let workerTryMap = new Map();
+  let computeMode = 'idle';
+  let gpuInfo = { checked: false, supported: false, reason: '未检测' };
+
+  function bytesToHex(bytes) {
+    const hex = [];
+    for (let i = 0; i < bytes.length; i++) {
+      const v = bytes[i].toString(16);
+      hex.push(v.length === 1 ? '0' + v : v);
+    }
+    return hex.join('');
+  }
+
+  function randomPrivateKeyHex() {
+    const bytes = new Uint8Array(32);
+    self.crypto.getRandomValues(bytes);
+    let allZero = true;
+    for (let i = 0; i < bytes.length; i++) {
+      if (bytes[i] !== 0) {
+        allZero = false;
+        break;
+      }
+    }
+    if (allZero) bytes[31] = 1;
+    return '0x' + bytesToHex(bytes);
+  }
+
+  function tailRepeatAnyMatch(s, repeatLen) {
+    if (repeatLen <= 1) return s.length >= repeatLen;
+    if (s.length < repeatLen) return false;
+    const c = s[s.length - 1];
+    for (let i = 2; i <= repeatLen; i++) {
+      if (s[s.length - i] !== c) return false;
+    }
+    return true;
+  }
+
+  function addressMatches(rule, addrNoPrefix) {
+    if (rule.prefix && !addrNoPrefix.startsWith(rule.prefix)) return false;
+
+    let okByCustomSuffix = false;
+    let okByRepeat = false;
+    const hasSuffixRule = !!(rule.suffixes && rule.suffixes.length > 0);
+    const hasRepeatRule = !!(rule.repeatEnabled && rule.repeatLen > 0);
+
+    if (hasSuffixRule) {
+      for (let i = 0; i < rule.suffixes.length; i++) {
+        if (addrNoPrefix.endsWith(rule.suffixes[i])) {
+          okByCustomSuffix = true;
+          break;
+        }
+      }
+    }
+
+    if (hasRepeatRule) {
+      if (rule.repeatChar) {
+        okByRepeat = addrNoPrefix.endsWith(rule.repeatChar.repeat(rule.repeatLen));
+      } else {
+        okByRepeat = tailRepeatAnyMatch(addrNoPrefix, rule.repeatLen);
+      }
+    }
+
+    if (!hasSuffixRule && !hasRepeatRule) return false;
+    if (hasSuffixRule && hasRepeatRule) {
+      return rule.combineAny ? (okByCustomSuffix || okByRepeat) : okByCustomSuffix;
+    }
+    return hasSuffixRule ? okByCustomSuffix : okByRepeat;
+  }
+
+  const hw = navigator.hardwareConcurrency || 8;
+  workerCountInput.value = String(Math.max(1, Math.min(32, hw - 1 || 1)));
+
+  function log(msg, cls) {
+    const div = document.createElement('div');
+    if (cls) div.className = cls;
+    const now = new Date();
+    const ts = now.toLocaleTimeString();
+    div.textContent = `[${ts}] ${msg}`;
+    logBox.appendChild(div);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  function esc(s) {
+    return String(s)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function isHexText(v) {
+    return /^[0-9a-f]*$/i.test(v);
+  }
+
+  function parseRules() {
+    const prefix = String(prefixInput.value || '').trim().toLowerCase();
+    const suffixRaw = String(suffixInput.value || '').trim().toLowerCase();
+    const backendMode = String(backendModeInput.value || 'auto');
+    const repeatOn = !!repeatEnable.checked;
+    const n = Number(repeatLen.value || 0);
+    const rc = String(repeatChar.value || '').trim().toLowerCase();
+    const combineAnyRule = !!combineAny.checked;
+
+    if (prefix && !isHexText(prefix)) throw new Error('前缀只能包含 0-9 a-f');
+
+    const suffixes = suffixRaw
+      ? suffixRaw.split(/[,，]/).map((x) => x.trim()).filter(Boolean)
+      : [];
+
+    const suffixSet = new Set();
+    for (const s of suffixes) {
+      if (!isHexText(s)) throw new Error('尾号只能包含 0-9 a-f');
+      suffixSet.add(s);
+    }
+
+    if (repeatOn) {
+      if (!Number.isFinite(n) || n < 2 || n > 12) throw new Error('N 连建议在 2~12');
+      if (rc && !/^[0-9a-f]$/i.test(rc)) throw new Error('连号字符只能是 0-9 或 a-f');
+    }
+
+    if (suffixSet.size === 0 && !repeatOn) {
+      throw new Error('请至少配置一个条件：定制尾号 或 启用尾号N连');
+    }
+
+    const targetCount = Math.max(1, Math.min(20, Number(targetCountInput.value || 1)));
+    const workerCount = Math.max(1, Math.min(32, Number(workerCountInput.value || 1)));
+
+    return {
+      prefix,
+      suffixes: [...suffixSet],
+      repeatEnabled: repeatOn,
+      repeatLen: repeatOn ? n : 0,
+      repeatChar: repeatOn ? rc : '',
+      combineAny: combineAnyRule,
+      backendMode,
+      targetCount,
+      workerCount,
+      batchSize: 500,
+    };
+  }
+
+  async function detectGpu() {
+    const isMac = /mac/i.test(String(navigator.platform || '')) || /mac os/i.test(String(navigator.userAgent || ''));
+    if (!isMac) {
+      gpuInfo = { checked: true, supported: false, reason: '非 Mac 设备' };
+      gpuVal.textContent = '不可用(非Mac)';
+      return;
+    }
+    if (location.protocol === 'file:') {
+      gpuInfo = { checked: true, supported: false, reason: 'file:// 下不可用' };
+      gpuVal.textContent = '不可用(file://)';
+      return;
+    }
+    if (!('gpu' in navigator)) {
+      gpuInfo = { checked: true, supported: false, reason: '浏览器未启用 WebGPU' };
+      gpuVal.textContent = '不可用(WebGPU未启用)';
+      return;
+    }
+    try {
+      const adapter = await navigator.gpu.requestAdapter();
+      if (!adapter) {
+        gpuInfo = { checked: true, supported: false, reason: '无可用 GPU 适配器' };
+        gpuVal.textContent = '不可用(无适配器)';
+        return;
+      }
+      gpuInfo = { checked: true, supported: true, reason: 'WebGPU 可用' };
+      gpuVal.textContent = '可用(WebGPU)';
+    } catch (_) {
+      gpuInfo = { checked: true, supported: false, reason: 'WebGPU 初始化失败' };
+      gpuVal.textContent = '不可用(初始化失败)';
+    }
+  }
+
+  function formatNum(n) {
+    if (!Number.isFinite(n)) return '-';
+    return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  }
+
+  function formatDuration(sec) {
+    if (!Number.isFinite(sec) || sec <= 0) return '-';
+    if (sec < 1) return '< 1s';
+    if (sec < 60) return sec.toFixed(1) + 's';
+    if (sec < 3600) return (sec / 60).toFixed(1) + 'm';
+    if (sec < 86400) return (sec / 3600).toFixed(2) + 'h';
+    return (sec / 86400).toFixed(2) + 'd';
+  }
+
+  function formatClock(sec) {
+    if (!Number.isFinite(sec) || sec < 0) sec = 0;
+    const s = Math.floor(sec % 60);
+    const m = Math.floor((sec / 60) % 60);
+    const h = Math.floor(sec / 3600);
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }
+
+  function pow16neg(len) {
+    return Math.pow(16, -len);
+  }
+
+  function buildProbability(rule) {
+    let pPrefix = 1;
+    if (rule.prefix) pPrefix = pow16neg(rule.prefix.length);
+
+    let pTail = 0;
+    for (const s of rule.suffixes) {
+      pTail += pow16neg(s.length);
+    }
+
+    const hasSuffixRule = !!(rule.suffixes && rule.suffixes.length > 0);
+    if (rule.repeatEnabled && (!hasSuffixRule || rule.combineAny)) {
+      if (rule.repeatChar) {
+        pTail += pow16neg(rule.repeatLen);
+      } else {
+        // Any-char N-repeat at tail: 16 choices out of 16^N
+        pTail += Math.pow(16, 1 - rule.repeatLen);
+      }
+    }
+
+    pTail = Math.min(1, pTail);
+    const p = Math.min(1, pPrefix * pTail);
+    return p;
+  }
+
+  function refreshEstimate() {
+    let rule;
+    try {
+      rule = parseRules();
+    } catch (e) {
+      ruleSummary.textContent = String(e.message || e);
+      probVal.textContent = '-';
+      etaVal.textContent = '-';
+      instantTries.textContent = '-';
+      instantEta.textContent = '-';
+      instantBaseSpeed.textContent = '-';
+      exampleBody.innerHTML = '<tr><td colspan="3" class="hint">规则未通过校验</td></tr>';
+      return;
+    }
+
+    const p = buildProbability(rule);
+    const expectedTries = p > 0 ? (1 / p) : Infinity;
+
+    const elapsedSec = (Date.now() - runStartedAt) / 1000;
+    const rawSpeed = elapsedSec > 0 ? (totalTries / elapsedSec) : 0;
+    const stableSpeed = rawSpeed > 0 ? rawSpeed : 20000;
+    const gpuBoost = (rule.backendMode === 'gpu_mac' && gpuInfo.supported) ? 2.2 : 1;
+    const benchmarkSpeed = location.protocol === 'file:'
+      ? 4000
+      : Math.max(5000, Number(rule.workerCount || 1) * 8000 * gpuBoost);
+
+    probVal.textContent = p > 0 ? `1 / ${formatNum(expectedTries)}` : '-';
+    etaVal.textContent = p > 0 ? formatDuration(expectedTries / Math.max(stableSpeed, 1)) : '-';
+    instantTries.textContent = p > 0 ? formatNum(expectedTries) : '-';
+    instantEta.textContent = p > 0 ? formatDuration(expectedTries / benchmarkSpeed) : '-';
+    instantBaseSpeed.textContent = formatNum(benchmarkSpeed);
+
+    const suffixText = rule.suffixes.length ? ('定制尾号: ' + rule.suffixes.join(', ')) : '定制尾号: 无';
+    const repeatText = rule.repeatEnabled
+      ? (`N连: ${rule.repeatLen}${rule.repeatChar ? (' (字符=' + rule.repeatChar + ')') : ' (任意字符)'}`)
+      : 'N连: 关闭';
+    const modeText = rule.combineAny ? '组合模式: 任一命中(OR)' : '组合模式: 定制尾号优先';
+    const backendText = rule.backendMode === 'gpu_mac' ? '后端: GPU(Mac实验)' : (rule.backendMode === 'cpu' ? '后端: CPU' : '后端: Auto');
+    const prefixText = rule.prefix ? ('前缀=' + rule.prefix) : '前缀=无';
+    ruleSummary.textContent = `${prefixText} | ${suffixText} | ${repeatText} | ${modeText} | ${backendText}`;
+
+    const sampleRows = [];
+    for (let n = 4; n <= 8; n++) {
+      const triesExact = Math.pow(16, n);
+      const triesAnyRepeat = Math.pow(16, n - 1);
+      sampleRows.push({
+        cfg: `尾号${n}连固定字符 (如 ${'8'.repeat(Math.min(n, 8))})`,
+        tries: triesExact,
+        eta: triesExact / Math.max(stableSpeed, 1),
+      });
+      sampleRows.push({
+        cfg: `尾号${n}连任意字符 (如 ${'a'.repeat(Math.min(n, 8))} / ${'3'.repeat(Math.min(n, 8))})`,
+        tries: triesAnyRepeat,
+        eta: triesAnyRepeat / Math.max(stableSpeed, 1),
+      });
+    }
+
+    exampleBody.innerHTML = sampleRows.map((r) => (
+      `<tr><td>${esc(r.cfg)}</td><td class="mono">${esc(formatNum(r.tries))}</td><td class="mono">${esc(formatDuration(r.eta))}</td></tr>`
+    )).join('');
+  }
+
+  function updateStatus() {
+    triesVal.textContent = formatNum(totalTries);
+
+    const elapsedSec = Math.max((Date.now() - runStartedAt) / 1000, 0.001);
+    const speed = totalTries / elapsedSec;
+    speedVal.textContent = formatNum(speed);
+    elapsedVal.textContent = formatClock(elapsedSec);
+    foundVal.textContent = String(totalFound);
+
+    if (!running) {
+      runState.textContent = '已停止';
+      runState.className = 'v warn';
+    } else {
+      runState.textContent = '运行中';
+      runState.className = 'v ok';
+    }
+
+    modeVal.textContent = computeMode === 'worker'
+      ? 'CPU / Web Worker'
+      : (computeMode === 'main'
+        ? 'CPU / 主线程'
+        : (computeMode === 'gpu'
+          ? 'GPU(Mac) / 混合'
+          : (computeMode === 'starting' ? '启动中' : '待机')));
+
+    refreshEstimate();
+  }
+
+  function stopAllWorkers() {
+    for (const w of workers) {
+      try { w.postMessage({ type: 'stop' }); } catch (_) {}
+      try { w.terminate(); } catch (_) {}
+    }
+    workers = [];
+    workerTryMap.clear();
+    if (mainLoopTimer) {
+      clearTimeout(mainLoopTimer);
+      mainLoopTimer = null;
+    }
+    running = false;
+    computeMode = 'idle';
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    updateStatus();
+  }
+
+  function appendResult(rowNo, address, privateKey, ts) {
+    if (resultBody.querySelector('td[colspan="4"]')) {
+      resultBody.innerHTML = '';
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${rowNo}</td>
+      <td class="mono">${esc(address)}</td>
+      <td class="mono">${esc(privateKey)}</td>
+      <td>${esc(new Date(ts).toLocaleString())}</td>
+    `;
+    resultBody.prepend(tr);
+  }
+
+  function startMainThreadFallback(rule) {
+    if (!window.ethers || typeof window.ethers.computeAddress !== 'function') {
+      log('主线程模式缺少 ethers 库，无法计算地址。请检查网络后刷新。', 'danger');
+      stopAllWorkers();
+      return;
+    }
+
+    const batch = 800;
+    computeMode = 'main';
+    log('当前为 file:// 模式，已自动切换到主线程计算（无 Worker）。', 'warn');
+
+    const tick = () => {
+      if (!running) return;
+      let delta = 0;
+
+      for (let i = 0; i < batch; i++) {
+        if (!running) break;
+        const pk = randomPrivateKeyHex();
+        let addr = '';
+        try {
+          addr = window.ethers.computeAddress(pk);
+        } catch (_) {
+          continue;
+        }
+        delta += 1;
+        const raw = addr.slice(2).toLowerCase();
+        if (!addressMatches(rule, raw)) continue;
+
+        totalFound += 1;
+        appendResult(totalFound, addr, pk, Date.now());
+        log(`命中 #${totalFound}: ${addr}`, 'ok');
+        if (totalFound >= rule.targetCount) {
+          log('达到目标命中数量，自动停止。', 'warn');
+          stopAllWorkers();
+          return;
+        }
+      }
+
+      if (delta > 0) {
+        totalTries += delta;
+        lastProgressAt = Date.now();
+      }
+      updateStatus();
+      mainLoopTimer = setTimeout(tick, 0);
+    };
+
+    mainLoopTimer = setTimeout(tick, 0);
+  }
+
+  function startRun() {
+    if (running) return;
+
+    let rule;
+    try {
+      rule = parseRules();
+    } catch (e) {
+      log(String(e.message || e), 'danger');
+      return;
+    }
+
+    totalTries = 0;
+    totalFound = 0;
+    speedWindow = [];
+    runStartedAt = Date.now();
+    lastProgressAt = runStartedAt;
+    lastHeartbeatAt = runStartedAt;
+    running = true;
+    computeMode = 'starting';
+
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    updateStatus();
+
+    log(`开始生成: 线程=${rule.workerCount}, 目标命中=${rule.targetCount}, 后端=${rule.backendMode}`, 'ok');
+    log(`规则: 前缀=${rule.prefix || '-'}, 尾号=[${rule.suffixes.join(', ') || '-'}], N连=${rule.repeatEnabled ? (rule.repeatLen + (rule.repeatChar ? ('/' + rule.repeatChar) : '/任意')) : '关闭'}, 模式=${rule.combineAny ? 'OR' : '尾号优先'}`);
+
+    const wantGpuMac = rule.backendMode === 'gpu_mac';
+    if (location.protocol === 'file:') {
+      if (wantGpuMac) log('GPU(Mac) 需要 http/https，当前 file:// 已回退 CPU 主线程。', 'warn');
+      startMainThreadFallback(rule);
+      return;
+    }
+
+    let effectiveBatchSize = rule.batchSize;
+    if (wantGpuMac) {
+      if (gpuInfo.supported) {
+        computeMode = 'gpu';
+        effectiveBatchSize = 2200;
+        log('GPU(Mac) 模式已启用（实验）：当前为混合加速策略。', 'ok');
+      } else {
+        log(`GPU(Mac) 不可用：${gpuInfo.reason}，已回退 CPU。`, 'warn');
+      }
+    }
+
+    let startedWorkers = 0;
+    for (let i = 0; i < rule.workerCount; i++) {
+      let w;
+      try {
+        const workerUrl = new URL('./vanity_worker.js', location.href);
+        w = new Worker(workerUrl);
+      } catch (e) {
+        log(`Worker #${i + 1} 启动失败: ${String(e && e.message ? e.message : e)}`, 'danger');
+        continue;
+      }
+      const workerId = i + 1;
+      workerTryMap.set(workerId, 0);
+      w.onmessage = (event) => {
+        const msg = event.data || {};
+
+        if (msg.type === 'progress') {
+          const delta = Number(msg.triesDelta || 0);
+          if (delta > 0) {
+            totalTries += delta;
+            lastProgressAt = Date.now();
+            workerTryMap.set(workerId, (workerTryMap.get(workerId) || 0) + delta);
+          }
+          updateStatus();
+          return;
+        }
+
+        if (msg.type === 'found') {
+          const delta = Number(msg.triesDelta || 0);
+          if (delta > 0) {
+            totalTries += delta;
+            lastProgressAt = Date.now();
+            workerTryMap.set(workerId, (workerTryMap.get(workerId) || 0) + delta);
+          }
+
+          totalFound += 1;
+          appendResult(totalFound, String(msg.address || ''), String(msg.privateKey || ''), Number(msg.ts || Date.now()));
+          log(`命中 #${totalFound}: ${msg.address}`, 'ok');
+          updateStatus();
+
+          if (totalFound >= rule.targetCount) {
+            log('达到目标命中数量，自动停止。', 'warn');
+            stopAllWorkers();
+          }
+          return;
+        }
+      };
+
+      w.onerror = (err) => {
+        log(`Worker错误: ${err.message || 'unknown error'}`, 'danger');
+      };
+
+      workers.push(w);
+      startedWorkers += 1;
+      w.postMessage({
+        type: 'start',
+        prefix: rule.prefix,
+        suffixes: rule.suffixes,
+        repeatEnabled: rule.repeatEnabled,
+        repeatLen: rule.repeatLen,
+        repeatChar: rule.repeatChar,
+        combineAny: rule.combineAny,
+        batchSize: effectiveBatchSize,
+      });
+    }
+
+    if (startedWorkers === 0) {
+      log('没有可用线程启动，自动切换主线程模式继续运行。', 'warn');
+      startMainThreadFallback(rule);
+      return;
+    }
+    if (computeMode !== 'gpu') computeMode = 'worker';
+
+    heartbeatTimer = setInterval(() => {
+      if (!running) return;
+      const now = Date.now();
+      if (now - lastHeartbeatAt >= 1000) {
+        const elapsedSec = Math.max((now - runStartedAt) / 1000, 0.001);
+        const speed = totalTries / elapsedSec;
+        log(`运行中: 已尝试=${formatNum(totalTries)}, 算力=${formatNum(speed)} addr/s, 命中=${totalFound}`);
+        lastHeartbeatAt = now;
+      }
+      if (now - lastProgressAt > 4000) {
+        log('检测到 4 秒无进度回传，可能是线程卡住或浏览器限速。', 'warn');
+        lastProgressAt = now;
+      }
+    }, 1000);
+
+    updateStatus();
+  }
+
+  startBtn.addEventListener('click', startRun);
+  stopBtn.addEventListener('click', () => {
+    log('手动停止。', 'warn');
+    stopAllWorkers();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    resultBody.innerHTML = '<tr><td colspan="4" class="hint">暂无命中</td></tr>';
+    logBox.textContent = '';
+    totalTries = 0;
+    totalFound = 0;
+    runStartedAt = Date.now();
+    updateStatus();
+  });
+
+  [prefixInput, suffixInput, backendModeInput, repeatEnable, repeatLen, repeatChar, combineAny, workerCountInput, targetCountInput]
+    .forEach((el) => {
+      el.addEventListener('input', refreshEstimate);
+      el.addEventListener('change', refreshEstimate);
+    });
+
+  runStartedAt = Date.now();
+  cpuVal.textContent = String(navigator.hardwareConcurrency || '-');
+  memVal.textContent = (typeof navigator.deviceMemory === 'number' ? String(navigator.deviceMemory) : '未知');
+  gpuVal.textContent = '检测中...';
+  protoVal.textContent = location.protocol || '-';
+  detectGpu();
+  window.addEventListener('error', (e) => {
+    log(`页面错误: ${e.message || 'unknown error'}`, 'danger');
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    const msg = e && e.reason ? (e.reason.message || String(e.reason)) : 'unknown rejection';
+    log(`异步错误: ${msg}`, 'danger');
+  });
+  refreshEstimate();
+  updateStatus();
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
+</body>
+</html>

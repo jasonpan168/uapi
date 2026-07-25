@@ -1,0 +1,671 @@
+/* =====================================================
+   UAPI Payment — v2.3  Web3 Premium
+   简洁 · 专业 · 加密支付风格
+   ===================================================== */
+
+/* ─────────────────────────────────────────────────────
+   1. 付费卡片公共基础
+───────────────────────────────────────────────────── */
+.uapi-paywall-box,
+.uapi-download-box,
+.uapi-product-card,
+.uapi-post-lock {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  padding: 16px 20px 18px;
+  margin: 20px 0;
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, .10);
+
+  /* 多层背景：细网格 + 右上/左下光晕 + 深蓝底 */
+  background:
+    linear-gradient(rgba(99, 102, 241, .030) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, .030) 1px, transparent 1px),
+    radial-gradient(ellipse at 96% 4%,  rgba(99, 102, 241, .14) 0%, transparent 46%),
+    radial-gradient(ellipse at 4%  96%, rgba(20, 184, 166, .08) 0%, transparent 44%),
+    linear-gradient(148deg, #060d1c 0%, #0c1729 62%, #060d1c 100%);
+  background-size:
+    28px 28px, 28px 28px,
+    100% 100%, 100% 100%, 100% 100%;
+
+  box-shadow:
+    0 0 0 1px rgba(99, 102, 241, .07),
+    0 6px 32px rgba(0, 0, 0, .52),
+    0 1px 4px  rgba(0, 0, 0, .32);
+}
+
+/* BTC 幽灵轮廓 — 右上角装饰 */
+.uapi-paywall-box::before,
+.uapi-download-box::before,
+.uapi-product-card::before,
+.uapi-post-lock::before {
+  content: '';
+  position: absolute;
+  width: 92px;
+  height: 92px;
+  top: -8px;
+  right: -8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Ccircle cx='40' cy='40' r='37' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M28 22h17c5 0 8 3 8 7s-2 5-5 6c4 1 7 4 7 8s-3 8-9 8H28V22zm7 12h8c2 0 4-1 4-3s-1-3-4-3h-8v6zm0 7h9c3 0 4 1 4 4s-2 4-5 4h-8v-8z' fill='white'/%3E%3Cline x1='34' y1='18' x2='34' y2='23' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='43' y1='18' x2='43' y2='23' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='34' y1='57' x2='34' y2='62' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='43' y1='57' x2='43' y2='62' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: .052;
+  pointer-events: none;
+  filter: blur(.5px);
+}
+
+/* ETH 幽灵轮廓 — 左下角装饰 */
+.uapi-paywall-box::after,
+.uapi-download-box::after,
+.uapi-product-card::after,
+.uapi-post-lock::after {
+  content: '';
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  bottom: -7px;
+  left: -7px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Cpolygon points='40,5 72,42 40,54 8,42' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3Cpolygon points='40,60 72,42 40,76 8,42' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: .044;
+  pointer-events: none;
+  filter: blur(.5px);
+}
+
+/* ─────────────────────────────────────────────────────
+   2. 锁定 Badge
+───────────────────────────────────────────────────── */
+.uapi-lock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(99, 102, 241, .10);
+  border: 1px solid rgba(99, 102, 241, .22);
+  border-radius: 999px;
+  padding: 3px 10px 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #a5b4fc;
+  letter-spacing: .2px;
+  margin-bottom: 11px;
+  position: relative;
+  z-index: 1;
+  line-height: 1.6;
+}
+
+.uapi-lock-badge svg {
+  flex-shrink: 0;
+  opacity: .85;
+}
+
+/* ─────────────────────────────────────────────────────
+   3. 副标题 (post-lock 使用)
+───────────────────────────────────────────────────── */
+.uapi-paywall-sub {
+  margin: 0 0 13px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.55;
+  position: relative;
+  z-index: 1;
+}
+
+/* 向后兼容 — 旧结构 h3/p 隐藏即可，不影响新结构 */
+.uapi-post-lock h3,
+.uapi-paywall-title { display: none; }
+.uapi-post-lock > p:not(.uapi-paywall-sub):not(.uapi-product-desc) {
+  margin: 0 0 13px;
+  font-size: 13px;
+  color: #475569;
+  position: relative;
+  z-index: 1;
+}
+
+/* ─────────────────────────────────────────────────────
+   4. 按钮区域
+───────────────────────────────────────────────────── */
+.uapi-paywall-action {
+  position: relative;
+  z-index: 1;
+}
+
+/* 双按钮横排容器 — 居中，按钮宽度自适应内容 */
+.uapi-dual-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.uapi-dual-buttons .uapi-pay-btn {
+  flex: 0 0 auto;
+  min-width: 180px;
+  max-width: 240px;
+  width: auto;
+}
+
+/* ── 支付按钮基础 ── */
+.uapi-pay-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: none;
+  border-radius: 10px;
+  height: 42px;
+  padding: 0 20px;
+  background: linear-gradient(130deg, #4f46e5, #6366f1);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: .15px;
+  white-space: nowrap;
+  box-shadow:
+    0 4px 14px rgba(99, 102, 241, .36),
+    inset 0 1px 0 rgba(255, 255, 255, .13);
+  transition:
+    transform .14s ease,
+    box-shadow .16s ease,
+    filter .14s ease;
+  position: relative;
+  z-index: 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+.uapi-pay-btn:hover {
+  filter: brightness(1.09);
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 22px rgba(99, 102, 241, .46),
+    inset 0 1px 0 rgba(255, 255, 255, .13);
+}
+
+.uapi-pay-btn:active {
+  transform: translateY(0);
+  filter: brightness(.96);
+  box-shadow:
+    0 2px 8px rgba(99, 102, 241, .28),
+    inset 0 1px 0 rgba(255, 255, 255, .10);
+}
+
+.uapi-pay-btn:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, .7);
+  outline-offset: 3px;
+}
+
+.uapi-pay-btn:disabled {
+  opacity: .42;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+/* USDT 按钮 — 绿色 */
+.uapi-dual-buttons .uapi-pay-btn:first-child {
+  background: linear-gradient(130deg, #047857, #10b981);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, .34), inset 0 1px 0 rgba(255,255,255,.13);
+}
+
+.uapi-dual-buttons .uapi-pay-btn:first-child:hover {
+  box-shadow: 0 8px 22px rgba(16, 185, 129, .44), inset 0 1px 0 rgba(255,255,255,.13);
+}
+
+/* USDC 按钮 — 蓝色 */
+.uapi-dual-buttons .uapi-pay-btn:last-child {
+  background: linear-gradient(130deg, #1d4ed8, #3b82f6);
+  box-shadow: 0 4px 14px rgba(59, 130, 246, .34), inset 0 1px 0 rgba(255,255,255,.13);
+}
+
+.uapi-dual-buttons .uapi-pay-btn:last-child:hover {
+  box-shadow: 0 8px 22px rgba(59, 130, 246, .44), inset 0 1px 0 rgba(255,255,255,.13);
+}
+
+/* ─────────────────────────────────────────────────────
+   5. 下载链接 & 已付状态
+───────────────────────────────────────────────────── */
+.uapi-download-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  text-decoration: none;
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, .28);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: border-color .15s, background .15s;
+  position: relative;
+  z-index: 1;
+}
+
+.uapi-download-link:hover {
+  border-color: rgba(16, 185, 129, .52);
+  background: rgba(16, 185, 129, .07);
+}
+
+.uapi-hidden { display: none !important; }
+
+/* ─────────────────────────────────────────────────────
+   6. 商品卡片专属
+───────────────────────────────────────────────────── */
+.uapi-product-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.uapi-product-head strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.uapi-product-price {
+  font-size: 24px;
+  font-weight: 800;
+  color: #f8fafc;
+  margin: 8px 0 13px;
+  font-feature-settings: "tnum";
+  line-height: 1.2;
+  position: relative;
+  z-index: 1;
+}
+
+.uapi-product-desc {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.55;
+  position: relative;
+  z-index: 1;
+}
+
+.uapi-paid-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #065e3e;
+  background: linear-gradient(135deg, #a7f3d0, #6ee7b7);
+  border-radius: 999px;
+  padding: 2px 10px;
+  letter-spacing: .2px;
+}
+
+/* ─────────────────────────────────────────────────────
+   7. Toast 通知
+───────────────────────────────────────────────────── */
+.uapi-pay-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  background: #1e293b;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 10px;
+  z-index: 100000;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity .2s ease, transform .2s ease;
+  pointer-events: none;
+  font-size: 14px;
+  border: 1px solid rgba(255, 255, 255, .07);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
+  max-width: 260px;
+}
+
+.uapi-pay-toast.show { opacity: 1; transform: translateY(0); }
+.uapi-pay-toast[data-type="success"] { background: #064e3b; border-color: rgba(16, 185, 129, .26); }
+.uapi-pay-toast[data-type="warn"]    { background: #78350f; border-color: rgba(217, 119, 6, .26); }
+.uapi-pay-toast[data-type="error"]   { background: #7f1d1d; border-color: rgba(220, 38, 38, .26); }
+
+/* ─────────────────────────────────────────────────────
+   8. 支付模态框
+───────────────────────────────────────────────────── */
+.uapi-pay-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100001;
+  display: none;
+}
+
+.uapi-pay-modal.show { display: block; }
+
+.uapi-pay-modal-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, .74);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.uapi-pay-modal-panel {
+  position: relative;
+  width: calc(100% - 32px);
+  max-width: 400px;
+  margin: 8vh auto 0;
+  border-radius: 18px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 82% 0%, rgba(99, 102, 241, .13) 0%, transparent 50%),
+    linear-gradient(165deg, #0a1020, #0f1829 65%, #080e1a);
+  box-shadow:
+    0 0 0 1px rgba(99, 102, 241, .15),
+    0 24px 56px rgba(0, 0, 0, .56);
+}
+
+.uapi-pay-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, .026);
+  border-bottom: 1px solid rgba(255, 255, 255, .055);
+}
+
+.uapi-pay-modal-brand {
+  color: #facc15;
+  font-weight: 800;
+  letter-spacing: .5px;
+  font-size: 12px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.uapi-pay-modal-brand .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #facc15;
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, .18), 0 0 8px rgba(250, 204, 21, .36);
+  animation: uapi-dot-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes uapi-dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(250,204,21,.18), 0 0  8px rgba(250,204,21,.32); }
+  50%       { box-shadow: 0 0 0 5px rgba(250,204,21,.08), 0 0 14px rgba(250,204,21,.24); }
+}
+
+.uapi-pay-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(255, 255, 255, .05);
+  color: #94a3b8;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 7px;
+  transition: background .15s, color .15s;
+}
+
+.uapi-pay-close:hover {
+  background: rgba(255, 255, 255, .10);
+  color: #e2e8f0;
+}
+
+.uapi-pay-modal-body { padding: 18px 16px 18px; }
+
+.uapi-pay-amount {
+  color: #fff;
+  font-size: 30px;
+  font-weight: 800;
+  font-feature-settings: "tnum";
+  line-height: 1.2;
+}
+
+.uapi-pay-meta {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.uapi-pay-order {
+  margin-top: 10px;
+  color: #475569;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 11px;
+  background: rgba(255, 255, 255, .03);
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, .04);
+  word-break: break-all;
+}
+
+.uapi-pay-stage {
+  margin-top: 10px;
+  color: #94a3b8;
+  font-size: 13px;
+  min-height: 19px;
+}
+
+.uapi-pay-loader {
+  margin-top: 10px;
+  height: 3px;
+  border-radius: 99px;
+  background: rgba(148, 163, 184, .10);
+  overflow: hidden;
+  position: relative;
+}
+
+.uapi-pay-loader::after {
+  content: '';
+  position: absolute;
+  left: -40%;
+  top: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, #facc15, transparent);
+  animation: uapi-pay-run 1.4s ease-in-out infinite;
+}
+
+@keyframes uapi-pay-run { to { left: 100%; } }
+
+.uapi-pay-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+}
+
+.uapi-pay-btn-outline {
+  flex: 1;
+  border: 1px solid rgba(255, 255, 255, .09);
+  background: rgba(255, 255, 255, .04);
+  color: #94a3b8;
+  border-radius: 9px;
+  padding: 9px 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background .15s, border-color .15s, color .15s;
+}
+
+.uapi-pay-btn-outline:hover {
+  background: rgba(255, 255, 255, .08);
+  border-color: rgba(255, 255, 255, .16);
+  color: #e2e8f0;
+}
+
+/* ─────────────────────────────────────────────────────
+   9. 收款链接独立页面
+───────────────────────────────────────────────────── */
+.uapi-paylink-body {
+  margin: 0;
+  background:
+    linear-gradient(rgba(99, 102, 241, .038) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, .038) 1px, transparent 1px),
+    radial-gradient(ellipse at 25% 20%, rgba(99, 102, 241, .16) 0%, transparent 54%),
+    radial-gradient(ellipse at 82% 80%, rgba(20, 184, 166, .09) 0%, transparent 48%),
+    linear-gradient(160deg, #05091a 0%, #0b1220 60%, #060a14 100%);
+  background-size: 48px 48px, 48px 48px, 100% 100%, 100% 100%, 100% 100%;
+  min-height: 100vh;
+  color: #e5e7eb;
+}
+
+.uapi-paylink-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+}
+
+.uapi-paylink-card {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 20px;
+  padding: 26px 24px;
+  background:
+    radial-gradient(ellipse at 88% 8%, rgba(99, 102, 241, .12) 0%, transparent 48%),
+    linear-gradient(158deg, #0d162a, #101e37);
+  border: 1px solid rgba(99, 102, 241, .17);
+  box-shadow:
+    0 0 0 1px rgba(99, 102, 241, .07),
+    0 32px 64px rgba(0, 0, 0, .54),
+    inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+
+.uapi-paylink-brand {
+  color: #facc15;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+
+.uapi-paylink-brand::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #facc15;
+  box-shadow: 0 0 6px rgba(250, 204, 21, .5);
+  flex-shrink: 0;
+}
+
+.uapi-paylink-card h1 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #f1f5f9;
+  line-height: 1.3;
+}
+
+.uapi-paylink-desc {
+  color: #475569;
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.uapi-paylink-amount {
+  font-size: 34px;
+  font-weight: 800;
+  color: #f8fafc;
+  font-feature-settings: "tnum";
+  margin: 2px 0 4px;
+  line-height: 1.2;
+}
+
+.uapi-paylink-meta {
+  margin-top: 4px;
+  color: #818cf8;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+
+.uapi-paylink-paid {
+  margin-top: 18px;
+  color: #6ee7b7;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.uapi-paylink-paid::before {
+  content: '\2713';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: rgba(16, 185, 129, .15);
+  border: 1px solid rgba(16, 185, 129, .26);
+  border-radius: 50%;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.uapi-paylink-card .uapi-pay-btn {
+  margin-top: 20px;
+  width: 100%;
+  height: 46px;
+  font-size: 15px;
+  letter-spacing: .25px;
+}
+
+/* ─────────────────────────────────────────────────────
+   10. 响应式 — 移动端
+───────────────────────────────────────────────────── */
+@media (max-width: 520px) {
+  .uapi-paywall-box,
+  .uapi-download-box,
+  .uapi-product-card,
+  .uapi-post-lock {
+    padding: 14px 16px 16px;
+    border-radius: 12px;
+    margin: 16px 0;
+  }
+
+  /* 小屏双按钮纵向堆叠，撑满列宽 */
+  .uapi-dual-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .uapi-dual-buttons .uapi-pay-btn {
+    min-width: unset;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .uapi-pay-btn {
+    height: 44px;
+  }
+
+  .uapi-pay-modal-panel {
+    margin-top: 5vh;
+    border-radius: 16px;
+  }
+
+  .uapi-paylink-card {
+    padding: 20px 18px;
+    border-radius: 16px;
+  }
+
+  .uapi-paylink-amount {
+    font-size: 28px;
+  }
+}

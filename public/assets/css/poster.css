@@ -1,0 +1,254 @@
+/* public/assets/css/poster.css */
+/* Unified Poster Styles for List, Preview, Modal, and Download */
+
+:root {
+    --radius: 18px; /* Slightly smaller for better fit in UI */
+    --shadow: 0 10px 25px rgba(0,0,0,.1);
+}
+
+.poster-card {
+    width: 100%;
+    aspect-ratio: 320 / 520;
+    border-radius: var(--radius);
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    background: linear-gradient(160deg, var(--bg1), var(--bg2));
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    user-select: none;
+    transform-origin: top left;
+}
+
+/* Hover effect only for interactive elements */
+.poster-card.interactive:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0,0,0,.15);
+    cursor: pointer;
+}
+
+/* Selected state for picker */
+.poster-card.selected {
+    box-shadow: 0 0 0 4px #0d6efd, 0 15px 35px rgba(0,0,0,.15);
+}
+
+/* Inner Elements */
+.poster-glass {
+    position: absolute;
+    inset: -15% -20% auto auto;
+    width: 50%;
+    height: 30%;
+    border-radius: 999px;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.6), rgba(255,255,255,0) 65%);
+    opacity: .55;
+    transform: rotate(12deg);
+    pointer-events: none;
+}
+
+.poster-top {
+    position: absolute;
+    left: 5%; right: 5%; top: 4%;
+    padding: 6%;
+    border-radius: calc(var(--radius) * 0.8);
+    background: linear-gradient(135deg, rgba(0,0,0,.06), rgba(0,0,0,.0));
+    border: 1px solid rgba(0,0,0,.06);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.poster-logo-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.poster-logo {
+    width: 18%;
+    aspect-ratio: 1/1;
+    border-radius: 999px;
+    overflow: hidden;
+    background: white;
+    padding: 2%;
+    box-shadow: 0 4px 10px rgba(0,0,0,.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.poster-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.15);
+}
+
+.poster-text-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.poster-title {
+    font-size: 1.6em; /* Relative size */
+    font-weight: 900;
+    line-height: 1;
+    color: rgba(10,15,20,.92);
+    letter-spacing: 0.5px;
+}
+
+.poster-subtitle {
+    font-size: 0.8em;
+    font-weight: 800;
+    color: rgba(10,15,20,.65);
+    margin-top: 2px;
+}
+
+.poster-line {
+    height: 1px;
+    background: rgba(0,0,0,.08);
+    width: 100%;
+}
+
+.poster-scan-text {
+    font-size: 1em;
+    font-weight: 900;
+    opacity: .9;
+    text-align: center;
+    color: rgba(10,15,20,.8);
+}
+
+/* QR Slot */
+.poster-qr-slot {
+    position: absolute;
+    left: 16%;
+    top: 28%;
+    width: 68%;
+    aspect-ratio: 1/1;
+    border-radius: calc(var(--radius) * 0.8);
+    background: rgba(255,255,255,.92);
+    border: 2px solid rgba(0,0,0,.10);
+    box-shadow: 0 8px 20px rgba(0,0,0,.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2%;
+}
+
+.poster-qr-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: calc(var(--radius) * 0.5);
+    border: 2px dashed rgba(15,23,42,.22);
+    position: relative;
+    background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(255,255,255,.98));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.poster-qr-img {
+    width: 92%;
+    height: 92%;
+    object-fit: contain;
+    mix-blend-mode: multiply;
+}
+
+/* Corners */
+.poster-corner {
+    position: absolute;
+    width: 12%;
+    height: 12%;
+    border: 3px solid var(--accent);
+    border-right: none;
+    border-bottom: none;
+    border-radius: 4px 0 0 0;
+    opacity: .9;
+    z-index: 2;
+}
+.c1 { left: 5%; top: 5%; }
+.c2 { right: 5%; top: 5%; transform: rotate(90deg); }
+.c3 { left: 5%; bottom: 5%; transform: rotate(270deg); }
+.c4 { right: 5%; bottom: 5%; transform: rotate(180deg); }
+
+/* Bottom Area */
+.poster-bottom {
+    position: absolute;
+    left: 5%; right: 5%; bottom: 4%;
+    border-radius: calc(var(--radius) * 0.8);
+    padding: 6%;
+    background: rgba(255,255,255,.72);
+    border: 1px solid rgba(0,0,0,.06);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.poster-store-name {
+    font-size: 1.2em;
+    font-weight: 900;
+    color: rgba(10,15,20,.8);
+    text-align: center;
+    margin-bottom: 4px;
+}
+
+.poster-pill {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white;
+    font-weight: 900;
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 0.9em;
+    box-shadow: 0 5px 15px rgba(0,0,0,.15);
+    letter-spacing: 0.5px;
+    width: fit-content;
+}
+
+.poster-thank {
+    font-size: 0.8em;
+    font-weight: 900;
+    color: rgba(10,15,20,.65);
+    opacity: 0.8;
+}
+
+/* Style Variants */
+.poster-card.neon .poster-top, 
+.poster-card.neon .poster-bottom {
+    background: rgba(255,255,255,.1);
+    border-color: rgba(255,255,255,.1);
+}
+.poster-card.neon .poster-title,
+.poster-card.neon .poster-subtitle,
+.poster-card.neon .poster-scan-text,
+.poster-card.neon .poster-store-name,
+.poster-card.neon .poster-thank {
+    color: rgba(255,255,255,.9);
+}
+.poster-card.neon .poster-line {
+    background: rgba(255,255,255,.15);
+}
+.poster-card.neon .poster-qr-slot {
+    border-color: rgba(34,197,94,.55);
+    box-shadow: 0 0 0 3px rgba(34,197,94,.18), 0 15px 30px rgba(0,0,0,.22);
+}
+
+.poster-card.minimal .poster-top,
+.poster-card.minimal .poster-bottom {
+    background: rgba(255,255,255,.85);
+    border-color: rgba(0,0,0,.06);
+}
+.poster-card.minimal .poster-glass { display: none; }
+
+.poster-card.glossy::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 25% 10%, rgba(255,255,255,.55), rgba(255,255,255,0) 45%),
+                radial-gradient(circle at 80% 60%, rgba(34,197,94,.16), rgba(255,255,255,0) 55%);
+    pointer-events: none;
+}
+
+/* Size Helpers for different contexts */
+.poster-sm { font-size: 10px; } /* List View */
+.poster-md { font-size: 14px; } /* Modal Preview */
+.poster-lg { font-size: 24px; } /* Download Page */

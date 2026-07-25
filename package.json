@@ -1,0 +1,38 @@
+{
+  "name": "uapi",
+  "version": "1.0.0",
+  "description": "UAPI — 自托管多链加密货币支付网关，支持 USDT/USDC、Binance Pay、Stripe。仅供学习研究，商用需付费授权。",
+  "main": "tailwind.config.js",
+  "scripts": {
+    "build:css": "tailwindcss -i ./input.css -o ./public/output.css --minify",
+    "watch:css": "tailwindcss -i ./input.css -o ./public/output.css --watch",
+    "test": "echo \"No automated tests\" && exit 0"
+  },
+  "keywords": [
+    "crypto",
+    "payment-gateway",
+    "usdt",
+    "usdc",
+    "stablecoin",
+    "trc20",
+    "erc20",
+    "web3",
+    "binance-pay",
+    "stripe",
+    "php"
+  ],
+  "author": "The UAPI Authors <admin@uapi.io>",
+  "homepage": "https://github.com/jasonpan168/uapi",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jasonpan168/uapi.git"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "commonjs",
+  "devDependencies": {
+    "tailwindcss": "^3.4.4"
+  },
+  "dependencies": {
+    "ethers": "^6.13.2"
+  }
+}

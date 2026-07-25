@@ -1,0 +1,46 @@
+# ---- 依赖与构建产物 ----
+node_modules/
+scripts/derived-address-service/node_modules/
+*.log
+
+# ---- 环境与本地配置(含敏感信息) ----
+.env
+.env.*
+!.env.example
+config/db.php
+
+# ---- 本地数据库快照 / 数据导出(切勿提交) ----
+*.sql
+*.sqlite
+
+# ---- Python 环境(非本项目运行所需) ----
+.venv/
+.pycache/
+__pycache__/
+*.pyc
+
+# ---- 操作系统 / 编辑器 / AI 工具 ----
+.DS_Store
+.idea/
+.vscode/
+.claude/
+.codex/
+.trae/
+
+# ---- 与本项目无关、请勿放入仓库的第三方项目 ----
+new-api/
+one-api/
+
+# ---- 本地草稿 / 备份 / 设计稿 ----
+backups/
+UI 设计图/
+*-report.html
+
+# ---- 用户上传内容(运行时产物,不入库) ----
+public/uploads/*
+!public/uploads/.gitkeep
+
+# ---- 服务器运行时产物(宝塔面板 / nginx / Let's Encrypt) ----
+.user.ini
+public/.user.ini
+public/.well-known/

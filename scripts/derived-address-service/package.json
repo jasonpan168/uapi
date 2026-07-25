@@ -1,0 +1,12 @@
+{
+  "name": "uapi-derived-address-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "ethers": "^6.13.2"
+  }
+}

@@ -1,0 +1,68 @@
+.lang-switch,
+.lang-seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #f8fafc;
+    border: 1px solid #dbe3ee;
+    border-radius: 999px;
+    padding: 4px;
+}
+
+.lang-switch a,
+.lang-seg a,
+.lang-switch .btn,
+.lang-seg .btn {
+    min-width: 38px;
+    height: 30px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+    border: 0 !important;
+    background: transparent;
+    padding: 0 10px;
+    line-height: 1;
+    box-shadow: none;
+    transition: all 0.2s ease;
+}
+
+.lang-switch a.active,
+.lang-seg a.active,
+.lang-switch .btn.active,
+.lang-seg .btn.active,
+.lang-switch .btn.btn-primary,
+.lang-seg .btn.btn-primary {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.lang-switch a:hover,
+.lang-seg a:hover,
+.lang-switch .btn:hover,
+.lang-seg .btn:hover {
+    color: #0f172a;
+    background: #ffffff;
+}
+
+@media (max-width: 576px) {
+    .lang-switch,
+    .lang-seg {
+        padding: 3px;
+    }
+
+    .lang-switch a,
+    .lang-seg a,
+    .lang-switch .btn,
+    .lang-seg .btn {
+        min-width: 34px;
+        height: 28px;
+        font-size: 11px;
+        padding: 0 8px;
+    }
+}

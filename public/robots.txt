@@ -1,0 +1,30 @@
+# robots.txt (self-hosted crypto payment gateway)
+
+User-agent: *
+Crawl-delay: 1
+
+# Public pages
+Allow: /$
+Allow: /index.php
+Allow: /doc.php
+Allow: /guide.php
+Allow: /login.php
+Allow: /register.php
+
+# Merchant-only (private dashboard, must not be indexed)
+Disallow: /dashboard.php
+Disallow: /balance.php
+Disallow: /orders.php
+Disallow: /upgrade.php
+Disallow: /api_settings.php
+Disallow: /transactions.php
+Disallow: /notifications.php
+Disallow: /profile.php
+
+# Admin / API / Cron (internal only)
+Disallow: /admin/
+Disallow: /api/
+Disallow: /cron/
+
+# Sitemap — uncomment and replace with your own domain
+# Sitemap: https://your-domain.com/sitemap.xml
