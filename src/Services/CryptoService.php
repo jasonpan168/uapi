@@ -555,7 +555,23 @@ class CryptoService {
             }
         }
 
-        // Fallback: query chain logs directly via RPC, avoids scanner API misses/rate-limit issues.
+        // The paid-key path above stays primary. Everything below is free, needs no API key,
+        // and exists because a free/limited Etherscan key returns
+        // "Free API access is not supported for this chain" for every chain except mainnet.
+
+        // Fallback 1: free Etherscan-format explorers (SnowTrace / Routescan).
+        $freeTx = self::checkEvmByFreeScan($chain_key, $address, (float)$expected_amount, (int)$min_timestamp, (array)$target_contracts, $currency, (int)($config['decimals'] ?? 6));
+        if ($freeTx) {
+            return $freeTx;
+        }
+
+        // Fallback 2: Blockscout v2 — free, no key, covers eth/polygon/optimism/arbitrum/base.
+        $bsTx = self::checkEvmByBlockscout($chain_key, $address, (float)$expected_amount, (int)$min_timestamp, (array)$target_contracts, $currency, (int)($config['decimals'] ?? 6));
+        if ($bsTx) {
+            return $bsTx;
+        }
+
+        // Fallback 3: query chain logs directly via RPC, avoids scanner API misses/rate-limit issues.
         $rpcTx = self::checkEvmByRpcLogs($chain_key, $address, (float)$expected_amount, (int)$min_timestamp, (array)$target_contracts, (int)($config['decimals'] ?? 6));
         if ($rpcTx) {
             return $rpcTx;
@@ -564,95 +580,319 @@ class CryptoService {
         return false;
     }
 
-    private static function checkEvmByRpcLogs($chain_key, $address, $expected_amount, $min_timestamp, $target_contracts, $defaultDecimals = 6)
+    /**
+     * Does this transfer carry the token the order is waiting for?
+     * Contract match first, symbol/name fuzzy match as a safety net for wrapped/bridged variants.
+     */
+    private static function matchesTargetToken($contractAddress, $symbol, $name, array $target_contracts, $currency): bool
     {
-        $rpc = self::getEvmRpcUrl($chain_key);
-        if ($rpc === '' || !preg_match('/^0x[a-fA-F0-9]{40}$/', (string)$address) || empty($target_contracts)) {
-            return false;
-        }
-
-        $latestHex = self::rpcCall($rpc, 'eth_blockNumber', []);
-        if (!is_string($latestHex) || !preg_match('/^0x[0-9a-fA-F]+$/', $latestHex)) {
-            return false;
-        }
-        $latest = hexdec($latestHex);
-        if ($latest <= 0) return false;
-
-        $from = max(0, $latest - 2500);
-        $fromHex = '0x' . dechex($from);
-        $toHex = '0x' . dechex($latest);
-        $topicTransfer = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-        $toTopic = '0x000000000000000000000000' . strtolower(substr((string)$address, 2));
-
         foreach ($target_contracts as $contract) {
-            $contract = strtolower(trim((string)$contract));
-            if (!preg_match('/^0x[a-f0-9]{40}$/', $contract)) continue;
-            $logs = self::rpcCall($rpc, 'eth_getLogs', [[
-                'fromBlock' => $fromHex,
-                'toBlock' => $toHex,
-                'address' => $contract,
-                'topics' => [$topicTransfer, null, $toTopic]
-            ]]);
-            if (!is_array($logs) || empty($logs)) continue;
-            usort($logs, function ($a, $b) {
-                $ab = hexdec((string)($a['blockNumber'] ?? '0x0'));
-                $bb = hexdec((string)($b['blockNumber'] ?? '0x0'));
-                return $bb <=> $ab;
-            });
-            foreach ($logs as $log) {
-                $txHash = (string)($log['transactionHash'] ?? '');
-                $bnHex = (string)($log['blockNumber'] ?? '');
-                $dataHex = (string)($log['data'] ?? '');
-                if (!preg_match('/^0x[a-fA-F0-9]{64}$/', $txHash)) continue;
-                if (!preg_match('/^0x[0-9a-fA-F]+$/', $bnHex)) continue;
-                if (!preg_match('/^0x[0-9a-fA-F]+$/', $dataHex)) continue;
+            if (strcasecmp((string)$contractAddress, (string)$contract) === 0) {
+                return true;
+            }
+        }
 
-                $blk = self::rpcCall($rpc, 'eth_getBlockByNumber', [$bnHex, false]);
-                $tsHex = is_array($blk) ? (string)($blk['timestamp'] ?? '') : '';
-                if (!preg_match('/^0x[0-9a-fA-F]+$/', $tsHex)) continue;
-                $timeStamp = hexdec($tsHex);
-                if ($timeStamp < ((int)$min_timestamp - 300)) continue;
+        $symbol = strtoupper((string)$symbol);
+        $name = strtoupper((string)$name);
+        if ($currency === 'USDC') {
+            return strpos($symbol, 'USDC') !== false || strpos($name, 'USD COIN') !== false;
+        }
+        return strpos($symbol, 'USDT') !== false || strpos($symbol, 'USD₮') !== false || strpos($name, 'TETHER') !== false;
+    }
 
-                $raw = ltrim(substr($dataHex, 2), '0');
-                if ($raw === '') $raw = '0';
-                $amount = hexdec($raw) / pow(10, max(0, (int)$defaultDecimals));
-                if (abs($amount - (float)$expected_amount) < 0.0001) {
-                    return [
-                        'hash' => $txHash,
-                        'amount' => $amount,
-                        'time' => $timeStamp
-                    ];
+    /**
+     * Free Etherscan-format explorers that serve tokentx without an API key.
+     * Only chains actually verified to answer are listed — an unlisted chain is a no-op.
+     */
+    private static function getFreeScanEndpoints($chain_key): array
+    {
+        $map = [
+            // SnowTrace is run by Routescan and still serves the V1 format for free.
+            'avalanche' => [
+                'https://api.snowtrace.io/api',
+                'https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api',
+            ],
+            'eth' => [
+                'https://api.routescan.io/v2/network/mainnet/evm/1/etherscan/api',
+            ],
+        ];
+        return $map[strtolower(trim((string)$chain_key))] ?? [];
+    }
+
+    private static function checkEvmByFreeScan($chain_key, $address, $expected_amount, $min_timestamp, $target_contracts, $currency = 'USDT', $defaultDecimals = 6)
+    {
+        foreach (self::getFreeScanEndpoints($chain_key) as $base) {
+            // offset stays at 50: Routescan quietly drops the newest records once offset
+            // passes 50, so a larger page would hide the very transfer being waited on.
+            $url = $base . '?module=account&action=tokentx&address=' . urlencode((string)$address) . '&page=1&offset=50&sort=desc';
+            $data = self::curlGetFree($url);
+            if (!isset($data['status']) || (string)$data['status'] !== '1' || empty($data['result']) || !is_array($data['result'])) {
+                continue;
+            }
+            foreach ($data['result'] as $tx) {
+                if (strcasecmp((string)($tx['to'] ?? ''), (string)$address) !== 0) continue;
+                if (!self::matchesTargetToken($tx['contractAddress'] ?? '', $tx['tokenSymbol'] ?? '', $tx['tokenName'] ?? '', $target_contracts, $currency)) continue;
+
+                $decimals = isset($tx['tokenDecimal']) ? intval($tx['tokenDecimal']) : (int)$defaultDecimals;
+                $amount = floatval((string)($tx['value'] ?? '0')) / pow(10, $decimals);
+                $timeStamp = (int)($tx['timeStamp'] ?? 0);
+                if ($timeStamp >= (int)$min_timestamp && abs($amount - (float)$expected_amount) < 0.0001) {
+                    return ['hash' => (string)$tx['hash'], 'amount' => $amount, 'time' => $timeStamp];
                 }
             }
         }
         return false;
     }
 
-    private static function getEvmRpcUrl($chain_key)
+    /**
+     * Blockscout v2 instances — free and keyless.
+     * BSC deliberately absent: there is no official Blockscout instance for it.
+     */
+    private static function getBlockscoutBase($chain_key): string
+    {
+        $map = [
+            'eth' => 'https://eth.blockscout.com',
+            'polygon' => 'https://polygon.blockscout.com',
+            // optimism.blockscout.com 301s here; the redirect is followed anyway, but
+            // naming the canonical host saves a round trip.
+            'optimism' => 'https://explorer.optimism.io',
+            'arbitrum' => 'https://arbitrum.blockscout.com',
+            'base' => 'https://base.blockscout.com',
+            'gnosis' => 'https://gnosis.blockscout.com',
+        ];
+        return $map[strtolower(trim((string)$chain_key))] ?? '';
+    }
+
+    private static function checkEvmByBlockscout($chain_key, $address, $expected_amount, $min_timestamp, $target_contracts, $currency = 'USDT', $defaultDecimals = 6)
+    {
+        $base = self::getBlockscoutBase($chain_key);
+        if ($base === '' || !preg_match('/^0x[a-fA-F0-9]{40}$/', (string)$address)) {
+            return false;
+        }
+
+        // filter=to keeps all 50 rows of the page on incoming transfers instead of spending
+        // half the window on outgoing ones. No ?token= filter on purpose: Blockscout answers
+        // that variant far too slowly to sit in a payment path.
+        $url = $base . '/api/v2/addresses/' . $address . '/token-transfers?type=ERC-20&filter=to';
+        $data = self::curlGetFree($url, ['Accept: application/json']);
+        if (!isset($data['items']) || !is_array($data['items'])) {
+            return false;
+        }
+
+        foreach ($data['items'] as $item) {
+            if (strcasecmp((string)($item['to']['hash'] ?? ''), (string)$address) !== 0) continue;
+
+            $token = is_array($item['token'] ?? null) ? $item['token'] : [];
+            $contract = (string)($token['address_hash'] ?? $token['address'] ?? '');
+            if (!self::matchesTargetToken($contract, $token['symbol'] ?? '', $token['name'] ?? '', $target_contracts, $currency)) continue;
+
+            $total = is_array($item['total'] ?? null) ? $item['total'] : [];
+            $decimals = isset($total['decimals']) ? intval($total['decimals']) : (int)$defaultDecimals;
+            $amount = floatval((string)($total['value'] ?? '0')) / pow(10, $decimals);
+
+            $timeStamp = isset($item['timestamp']) ? (int)strtotime((string)$item['timestamp']) : 0;
+            if ($timeStamp <= 0) continue;
+
+            if ($timeStamp >= ((int)$min_timestamp - 300) && abs($amount - (float)$expected_amount) < 0.0001) {
+                $hash = (string)($item['transaction_hash'] ?? $item['tx_hash'] ?? '');
+                if ($hash === '') continue;
+                return ['hash' => $hash, 'amount' => $amount, 'time' => $timeStamp];
+            }
+        }
+        return false;
+    }
+
+    private static function checkEvmByRpcLogs($chain_key, $address, $expected_amount, $min_timestamp, $target_contracts, $defaultDecimals = 6)
+    {
+        $rpcs = self::getEvmRpcUrls($chain_key);
+        if (empty($rpcs) || !preg_match('/^0x[a-fA-F0-9]{40}$/', (string)$address) || empty($target_contracts)) {
+            return false;
+        }
+
+        $topicTransfer = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+        $toTopic = '0x000000000000000000000000' . strtolower(substr((string)$address, 2));
+        $maxSpan = self::getEvmMaxLogSpan($chain_key);
+
+        // Walk the endpoint list so one node refusing eth_getLogs (BSC's official dataseed
+        // refuses it outright) does not sink the whole check.
+        foreach ($rpcs as $rpc) {
+            $latestHex = self::rpcCall($rpc, 'eth_blockNumber', []);
+            if (!is_string($latestHex) || !preg_match('/^0x[0-9a-fA-F]+$/', $latestHex)) {
+                continue;
+            }
+            $latest = hexdec($latestHex);
+            if ($latest <= 0) continue;
+
+            // Span follows how old the order actually is, so fast chains stay covered:
+            // a flat 2500 blocks is 8 hours on Ethereum but only 10 minutes on Arbitrum.
+            $span = self::getEvmLookbackBlocks($chain_key, (int)$min_timestamp, $maxSpan);
+            $fromHex = '0x' . dechex(max(0, $latest - $span));
+            $toHex = '0x' . dechex($latest);
+
+            $nodeUsable = false;
+            foreach ($target_contracts as $contract) {
+                $contract = strtolower(trim((string)$contract));
+                if (!preg_match('/^0x[a-f0-9]{40}$/', $contract)) continue;
+                $logs = self::rpcCall($rpc, 'eth_getLogs', [[
+                    'fromBlock' => $fromHex,
+                    'toBlock' => $toHex,
+                    'address' => $contract,
+                    'topics' => [$topicTransfer, null, $toTopic]
+                ]]);
+                if (!is_array($logs)) continue; // node rejected the query — try the next endpoint
+                $nodeUsable = true;
+                if (empty($logs)) continue;
+                usort($logs, function ($a, $b) {
+                    $ab = hexdec((string)($a['blockNumber'] ?? '0x0'));
+                    $bb = hexdec((string)($b['blockNumber'] ?? '0x0'));
+                    return $bb <=> $ab;
+                });
+                foreach ($logs as $log) {
+                    $txHash = (string)($log['transactionHash'] ?? '');
+                    $bnHex = (string)($log['blockNumber'] ?? '');
+                    $dataHex = (string)($log['data'] ?? '');
+                    if (!preg_match('/^0x[a-fA-F0-9]{64}$/', $txHash)) continue;
+                    if (!preg_match('/^0x[0-9a-fA-F]+$/', $bnHex)) continue;
+                    if (!preg_match('/^0x[0-9a-fA-F]+$/', $dataHex)) continue;
+
+                    $blk = self::rpcCall($rpc, 'eth_getBlockByNumber', [$bnHex, false]);
+                    $tsHex = is_array($blk) ? (string)($blk['timestamp'] ?? '') : '';
+                    if (!preg_match('/^0x[0-9a-fA-F]+$/', $tsHex)) continue;
+                    $timeStamp = hexdec($tsHex);
+                    if ($timeStamp < ((int)$min_timestamp - 300)) continue;
+
+                    $raw = ltrim(substr($dataHex, 2), '0');
+                    if ($raw === '') $raw = '0';
+                    $amount = hexdec($raw) / pow(10, max(0, (int)$defaultDecimals));
+                    if (abs($amount - (float)$expected_amount) < 0.0001) {
+                        return [
+                            'hash' => $txHash,
+                            'amount' => $amount,
+                            'time' => $timeStamp
+                        ];
+                    }
+                }
+            }
+            // The node answered but held no match — no point asking a second node the same thing.
+            if ($nodeUsable) return false;
+        }
+        return false;
+    }
+
+    /**
+     * Largest eth_getLogs block span each chain's free endpoints actually accept.
+     * Measured against the live nodes; going over gets the query rejected outright.
+     */
+    private static function getEvmMaxLogSpan($chain_key): int
+    {
+        $map = [
+            'eth' => 10000,
+            'bsc' => 5000,
+            'polygon' => 10000,
+            'optimism' => 10000,
+            'arbitrum' => 100000,
+            'base' => 10000,
+            'avalanche' => 10000,
+        ];
+        return $map[strtolower(trim((string)$chain_key))] ?? 2500;
+    }
+
+    /**
+     * Seconds per block, used to turn an order's age into a block span.
+     */
+    private static function getEvmBlockSeconds($chain_key): float
+    {
+        $map = [
+            'eth' => 12.0,
+            'bsc' => 3.0,
+            'polygon' => 2.0,
+            'optimism' => 2.0,
+            'arbitrum' => 0.25,
+            'base' => 2.0,
+            'avalanche' => 2.0,
+        ];
+        return $map[strtolower(trim((string)$chain_key))] ?? 3.0;
+    }
+
+    private static function getEvmLookbackBlocks($chain_key, int $min_timestamp, int $maxSpan): int
+    {
+        $ageSeconds = $min_timestamp > 0 ? (time() - $min_timestamp) : 0;
+        if ($ageSeconds < 0) $ageSeconds = 0;
+        $ageSeconds += 900; // clock drift + a margin so a just-created order still scans a real window
+
+        $blocks = (int)ceil($ageSeconds / max(0.05, self::getEvmBlockSeconds($chain_key)));
+        return max(500, min($maxSpan, $blocks));
+    }
+
+    /**
+     * Ordered RPC endpoints per chain. A DB override (rpc_url_<chain>) wins and may list
+     * several endpoints separated by comma/newline.
+     */
+    private static function getEvmRpcUrls($chain_key): array
     {
         $key = strtolower(trim((string)$chain_key));
+        $urls = [];
         try {
             if (class_exists('Database')) {
                 $db = Database::getInstance();
                 $row = $db->fetch("SELECT value FROM system_settings WHERE key_name = ?", ['rpc_url_' . $key]);
                 if ($row && !empty($row['value'])) {
-                    return trim((string)$row['value']);
+                    foreach (preg_split('/[\s,]+/', (string)$row['value']) as $u) {
+                        $u = trim($u);
+                        if ($u !== '') $urls[] = $u;
+                    }
                 }
             }
         } catch (Exception $e) {
             error_log("[CryptoService] RPC URL lookup failed for $key: " . $e->getMessage());
         }
 
+        // Verified against the live nodes. Ordering matters: endpoints that actually serve
+        // eth_getLogs come first. BSC's official dataseed answers eth_blockNumber but rejects
+        // every eth_getLogs query, so it is intentionally not listed.
         $map = [
-            'eth' => 'https://rpc.ankr.com/eth',
-            'bsc' => 'https://bsc-dataseed.binance.org',
-            'polygon' => 'https://polygon-rpc.com',
-            'arbitrum' => 'https://arb1.arbitrum.io/rpc',
-            'optimism' => 'https://mainnet.optimism.io',
-            'base' => 'https://mainnet.base.org',
-            'avalanche' => 'https://api.avax.network/ext/bc/C/rpc'
+            // publicnode caps eth_getLogs at ~100 blocks on Ethereum before demanding an
+            // archive token, so the wider endpoint has to come first.
+            'eth' => [
+                'https://rpc.mevblocker.io',
+                'https://ethereum-rpc.publicnode.com',
+            ],
+            'bsc' => [
+                'https://bsc-mainnet.nodereal.io/v1/64a9df0874fb4a93b9d0a3849de012d3',
+                'https://bsc-rpc.publicnode.com',
+            ],
+            'polygon' => [
+                'https://polygon-bor-rpc.publicnode.com',
+                'https://polygon-rpc.com',
+            ],
+            'arbitrum' => [
+                'https://arb1.arbitrum.io/rpc',
+                'https://arbitrum-one-rpc.publicnode.com',
+            ],
+            'optimism' => [
+                'https://optimism-rpc.publicnode.com',
+                'https://mainnet.optimism.io',
+            ],
+            'base' => [
+                'https://mainnet.base.org',
+                'https://base-rpc.publicnode.com',
+            ],
+            'avalanche' => [
+                'https://avalanche-c-chain-rpc.publicnode.com',
+                'https://api.avax.network/ext/bc/C/rpc',
+            ],
         ];
-        return $map[$key] ?? '';
+
+        foreach ($map[$key] ?? [] as $u) {
+            if (!in_array($u, $urls, true)) $urls[] = $u;
+        }
+        return $urls;
+    }
+
+    private static function getEvmRpcUrl($chain_key)
+    {
+        $urls = self::getEvmRpcUrls($chain_key);
+        return $urls[0] ?? '';
     }
 
     private static function rpcCall($rpcUrl, $method, $params = [])
@@ -744,44 +984,87 @@ class CryptoService {
                     }
                 }
 
-                $logs = $receipt['logs'] ?? [];
+                $matched = self::matchReceiptTransfer($receipt, $expected_to, $expected_amount, $config);
+                if ($matched !== false) return $matched;
+            }
 
-                // USDT Transfer Event
-                $transfer_topic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+            // Fallback: pull the same receipt from a free public RPC. Needed whenever the
+            // Etherscan key has no coverage for this chain, which is every chain but mainnet
+            // on the free tier.
+            $rpcAmount = self::verifyHashByRpc($chain_key, $hash, $expected_to, $expected_amount, $min_timestamp, $config);
+            if ($rpcAmount !== false) return $rpcAmount;
+        }
 
-                // Expected To Address (Pad to 32 bytes)
-                $clean_to = strtolower(str_replace('0x', '', $expected_to));
-                $padded_to = '0x000000000000000000000000' . $clean_to;
+        return false;
+    }
 
-                foreach ($logs as $log) {
-                    // Check Contract Address
-                    $is_valid_contract = false;
-                    if (isset($config['usdt']) && is_array($config['usdt'])) {
-                        foreach ($config['usdt'] as $c) {
-                            if (strcasecmp($log['address'], $c) === 0) {
-                                $is_valid_contract = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!$is_valid_contract) continue;
+    /**
+     * Scan a transaction receipt for a Transfer of the chain's USDT contract into $expected_to.
+     * Returns the amount on a match, false otherwise.
+     */
+    private static function matchReceiptTransfer($receipt, $expected_to, $expected_amount, $config)
+    {
+        $logs = (is_array($receipt) && isset($receipt['logs']) && is_array($receipt['logs'])) ? $receipt['logs'] : [];
+        if (empty($logs)) return false;
 
-                    // Check Topics
-                    if (isset($log['topics'][0]) && $log['topics'][0] === $transfer_topic &&
-                        isset($log['topics'][2]) && strcasecmp($log['topics'][2], $padded_to) === 0) {
+        $transfer_topic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+        $clean_to = strtolower(str_replace('0x', '', (string)$expected_to));
+        $padded_to = '0x000000000000000000000000' . $clean_to;
 
-                        // Parse Amount
-                        $hex_amount = str_replace('0x', '', $log['data']);
-                        $amount_wei = hexdec($hex_amount);
-                        $decimals = $config['decimals'] ?? 18;
-                        $amount = $amount_wei / pow(10, $decimals);
+        foreach ($logs as $log) {
+            if (!is_array($log)) continue;
 
-                        if (abs($amount - (float)$expected_amount) < 0.0001) return $amount;
+            $is_valid_contract = false;
+            if (isset($config['usdt']) && is_array($config['usdt'])) {
+                foreach ($config['usdt'] as $c) {
+                    if (strcasecmp((string)($log['address'] ?? ''), (string)$c) === 0) {
+                        $is_valid_contract = true;
+                        break;
                     }
                 }
             }
-        }
+            if (!$is_valid_contract) continue;
 
+            if (isset($log['topics'][0]) && $log['topics'][0] === $transfer_topic &&
+                isset($log['topics'][2]) && strcasecmp((string)$log['topics'][2], $padded_to) === 0) {
+
+                $hex_amount = str_replace('0x', '', (string)($log['data'] ?? ''));
+                $amount_wei = hexdec($hex_amount);
+                $decimals = $config['decimals'] ?? 18;
+                $amount = $amount_wei / pow(10, $decimals);
+
+                if (abs($amount - (float)$expected_amount) < 0.0001) return $amount;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Keyless equivalent of the Etherscan receipt lookup, over the free public RPC list.
+     */
+    private static function verifyHashByRpc($chain_key, $hash, $expected_to, $expected_amount, $min_timestamp, $config)
+    {
+        if (!preg_match('/^0x[a-fA-F0-9]{64}$/', (string)$hash)) return false;
+
+        foreach (self::getEvmRpcUrls($chain_key) as $rpc) {
+            $receipt = self::rpcCall($rpc, 'eth_getTransactionReceipt', [$hash]);
+            if (!is_array($receipt)) continue;
+            if ((string)($receipt['status'] ?? '') !== '0x1') return false; // reverted or pending
+
+            if ((int)$min_timestamp > 0) {
+                $blockNum = (string)($receipt['blockNumber'] ?? '');
+                if (preg_match('/^0x[0-9a-fA-F]+$/', $blockNum)) {
+                    $blk = self::rpcCall($rpc, 'eth_getBlockByNumber', [$blockNum, false]);
+                    $tsHex = is_array($blk) ? (string)($blk['timestamp'] ?? '') : '';
+                    if (preg_match('/^0x[0-9a-fA-F]+$/', $tsHex)) {
+                        $txTime = hexdec($tsHex);
+                        if ($txTime > 0 && $txTime < ((int)$min_timestamp - 300)) return false;
+                    }
+                }
+            }
+
+            return self::matchReceiptTransfer($receipt, $expected_to, $expected_amount, $config);
+        }
         return false;
     }
 
@@ -898,12 +1181,16 @@ class CryptoService {
         return;
     }
 
-    private static function request($method, $url, $data = null, $headers = [], $timeout = 15, bool $log = true): array
+    private static function request($method, $url, $data = null, $headers = [], $timeout = 15, bool $log = true, bool $follow = false): array
     {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+        if ($follow) {
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+        }
         curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (compatible; HTTPClient/1.0)');
         $httpMethod = strtoupper((string)$method);
         if ($httpMethod === 'POST') {
@@ -929,6 +1216,17 @@ class CryptoService {
 
     private static function curlGet($url, $headers = []) {
         $resp = self::request('GET', (string)$url, null, $headers, 10);
+        return $resp['json'];
+    }
+
+    /**
+     * GET against a keyless free provider. Deliberately unlogged, matching rpcCall():
+     * external_request_logs feeds merchant billable-request counts, and these cost nothing.
+     * Timeout is generous because Blockscout is noticeably slower than a paid scanner, and
+     * redirects are followed because these public explorers do move hosts.
+     */
+    private static function curlGetFree($url, $headers = [], $timeout = 20) {
+        $resp = self::request('GET', (string)$url, null, $headers, $timeout, false, true);
         return $resp['json'];
     }
 
