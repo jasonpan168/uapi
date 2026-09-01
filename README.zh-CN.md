@@ -678,7 +678,8 @@ PHP 8.0 及以上。代码使用了 PHP 8.0 语言特性（`match`、`str_starts
 
 简言之：**学习研究免费，商业使用须付费授权。**
 
-📧 商业授权 / 合作咨询：**admin@uapi.io**（也可通过 [GitHub Issue](https://github.com/jasonpan168/uapi/issues) 联系）
+💬 商业授权 / 合作咨询：请[提交 GitHub Issue](https://github.com/jasonpan168/uapi/issues)。
+🔒 发现安全问题？请勿公开提 Issue —— [点此私下报告](https://github.com/jasonpan168/uapi/security/advisories/new)。
 
 ---
 

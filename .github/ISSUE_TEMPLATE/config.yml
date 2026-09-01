@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Security report
+  - name: 🔒 Report a security vulnerability (private) / 私下报告安全漏洞
     url: https://github.com/jasonpan168/uapi/security/advisories/new
-    about: 请在这里私下报告安全漏洞，不要创建公开 Issue。
-  - name: Questions / commercial licensing
+    about: Report privately here. Do not open a public issue and do not email. 请在这里私下报告，不要创建公开 Issue，也不要发邮件。
+  - name: 💬 Questions / commercial licensing / 使用咨询与商业授权
     url: https://github.com/jasonpan168/uapi/issues
-    about: 使用咨询、商业授权与定制开发请通过 GitHub Issues 联系；一般使用问题请先查阅 docs/ 与 SUPPORT.md。
+    about: Use GitHub Issues for usage questions and licensing. Check docs/ and SUPPORT.md first. 使用咨询与商业授权请走 Issues；一般问题请先查阅 docs/ 与 SUPPORT.md。

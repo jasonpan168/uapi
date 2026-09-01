@@ -6,7 +6,11 @@ body:
   - type: markdown
     attributes:
       value: |
-        感谢反馈。提交前请移除 API Key、密码、Cookie、助记词、私钥、用户数据和生产日志中的敏感信息。安全漏洞请按 SECURITY.md 私下报告。
+        感谢反馈。提交前请移除 API Key、密码、Cookie、助记词、私钥、用户数据和生产日志中的敏感信息。
+        ⚠️ 安全漏洞请勿使用此模板，改用 [私下报告入口](https://github.com/jasonpan168/uapi/security/advisories/new)。
+
+        Thanks for the report. Please strip API keys, passwords, cookies, seed phrases, private keys, user data and production logs before submitting.
+        ⚠️ Do not use this template for security vulnerabilities — [report those privately here](https://github.com/jasonpan168/uapi/security/advisories/new).
   - type: input
     id: version
     attributes:

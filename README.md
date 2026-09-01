@@ -678,7 +678,8 @@ Copyright © 2026 The UAPI Authors
 
 In short: **free for learning and research; commercial use requires a paid license.**
 
-📧 Commercial licensing / cooperation: **admin@uapi.io** (or open a [GitHub issue](https://github.com/jasonpan168/uapi/issues))
+💬 Commercial licensing / cooperation: please [open a GitHub issue](https://github.com/jasonpan168/uapi/issues).
+🔒 Found a security problem? Do not open an issue — [report it privately here](https://github.com/jasonpan168/uapi/security/advisories/new).
 
 ---
 
