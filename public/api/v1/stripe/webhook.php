@@ -11,6 +11,13 @@
  * Required setting in admin panel (system_settings):
  *   key_name: stripe_webhook_secret   (starts with whsec_...)
  *   key_name: stripe_secret_key       (starts with sk_...)
+ *
+ * SECURITY: the signing secret is the only thing that proves a request really
+ * came from Stripe. When stripe_webhook_secret is missing or malformed this
+ * endpoint refuses the request with 503 and processes nothing — anyone on the
+ * internet could otherwise POST a forged "checkout.session.completed" event
+ * carrying a pending order number and have that order marked paid, crediting
+ * a balance or upgrading a plan for free.
  */
 
 // No session needed – this endpoint is called by Stripe, not a browser.
@@ -20,6 +27,7 @@ require_once __DIR__ . '/../../../../src/Core/Database.php';
 require_once __DIR__ . '/../../../../src/Services/UpgradeOrderService.php';
 require_once __DIR__ . '/../../../../src/Services/NotificationDispatcher.php';
 require_once __DIR__ . '/../../../../src/Services/ReferralService.php';
+require_once __DIR__ . '/../../../../src/Services/CouponService.php';
 
 header('Content-Type: application/json');
 
@@ -69,36 +77,52 @@ function stripe_webhook_log(Database $db, string $eventId, string $eventType, st
     }
 }
 
+/**
+ * Maximum accepted age (in seconds) of the timestamp inside Stripe-Signature.
+ * Mirrors Stripe's own default tolerance and bounds replay of captured events.
+ */
+const STRIPE_WEBHOOK_TOLERANCE = 300;
+
 function stripe_webhook_verify_signature(string $payload, string $sigHeader, string $secret): bool
 {
+    // An empty secret must never validate anything (defence in depth: the
+    // caller already rejects unconfigured secrets before reaching this point).
+    if ($secret === '') {
+        return false;
+    }
+
     // Stripe signature format: t=timestamp,v1=hash[,v1=hash2...]
     $parts = [];
     foreach (explode(',', $sigHeader) as $part) {
-        [$k, $v] = array_pad(explode('=', $part, 2), 2, '');
-        $parts[$k][] = $v;
+        [$k, $v] = array_pad(explode('=', trim($part), 2), 2, '');
+        $parts[trim($k)][] = trim($v);
     }
 
-    $timestamp = (int)($parts['t'][0] ?? 0);
+    $timestampRaw = (string)($parts['t'][0] ?? '');
     $signatures = $parts['v1'] ?? [];
 
-    if ($timestamp <= 0 || empty($signatures)) {
+    if ($timestampRaw === '' || !ctype_digit($timestampRaw) || empty($signatures)) {
+        return false;
+    }
+    $timestamp = (int)$timestampRaw;
+
+    // Reject stale or future-dated events (replay protection).
+    if (abs(time() - $timestamp) > STRIPE_WEBHOOK_TOLERANCE) {
         return false;
     }
 
-    // Reject events older than 5 minutes (replay protection)
-    if (abs(time() - $timestamp) > 300) {
-        return false;
-    }
-
-    $signed = $timestamp . '.' . $payload;
+    $signed = $timestampRaw . '.' . $payload;
     $expected = hash_hmac('sha256', $signed, $secret);
 
+    $valid = false;
     foreach ($signatures as $sig) {
+        // hash_equals is constant time and safe with attacker-controlled input;
+        // do not short-circuit the loop, so timing does not leak which entry matched.
         if (hash_equals($expected, $sig)) {
-            return true;
+            $valid = true;
         }
     }
-    return false;
+    return $valid;
 }
 
 // ── Load settings ────────────────────────────────────────────────────────────
@@ -115,16 +139,23 @@ $webhookSecret = trim((string)($cfg['stripe_webhook_secret'] ?? ''));
 
 // ── Verify signature ─────────────────────────────────────────────────────────
 
+// Fail closed: without a usable signing secret this endpoint cannot tell a
+// genuine Stripe event from a forged one, so it must not process anything.
 if ($webhookSecret === '' || strpos($webhookSecret, 'whsec_') !== 0) {
-    // Secret not configured – still try to process but log the warning
-    error_log('[Stripe Webhook] WARNING: stripe_webhook_secret not configured or invalid. Skipping signature verification.');
-} else {
-    if ($sigHeader === '') {
-        stripe_webhook_respond(400, 'Missing Stripe-Signature header');
-    }
-    if (!stripe_webhook_verify_signature($rawBody, $sigHeader, $webhookSecret)) {
-        stripe_webhook_respond(400, 'Signature verification failed');
-    }
+    error_log('[Stripe Webhook] REJECTED: stripe_webhook_secret is not configured or does not start with "whsec_". '
+        . 'Set it in the admin panel (Settings → Payment) before pointing Stripe at this endpoint. '
+        . 'Refusing the request instead of processing an unverified event.');
+    stripe_webhook_respond(503, 'Stripe webhook secret is not configured');
+}
+
+if ($sigHeader === '') {
+    stripe_webhook_respond(400, 'Missing Stripe-Signature header');
+}
+
+if (!stripe_webhook_verify_signature($rawBody, $sigHeader, $webhookSecret)) {
+    error_log('[Stripe Webhook] REJECTED: Stripe-Signature verification failed (bad signature, or timestamp outside the '
+        . STRIPE_WEBHOOK_TOLERANCE . 's tolerance).');
+    stripe_webhook_respond(400, 'Signature verification failed');
 }
 
 // ── Parse event ──────────────────────────────────────────────────────────────
@@ -199,15 +230,7 @@ $rowsChanged = $updated->rowCount();
 
 // Coupon usage
 if ($rowsChanged > 0) {
-    $couponCode = strtoupper(trim((string)($order['coupon_code'] ?? '')));
-    if ($couponCode !== '') {
-        try {
-            $db->query(
-                "UPDATE admin_coupons SET used_count = used_count + 1 WHERE code = ? AND status = 'active'",
-                [$couponCode]
-            );
-        } catch (Throwable $ignore) {}
-    }
+    CouponService::countAdminRedemption($db, $order);
 
     // Referral reward
     try {

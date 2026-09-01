@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/CouponService.php';
+
 class StoreCouponService
 {
     public static function applyOnPaid($db, $orderId)
@@ -59,7 +61,13 @@ class StoreCouponService
                 ]
             );
 
-            $db->query("UPDATE store_coupons SET used_count = used_count + 1 WHERE id = ?", [(int)$coupon['id']]);
+            // Conditional increment: the per-order usage row above already makes
+            // this idempotent, this keeps used_count from passing usage_limit
+            // when several orders settle at the same time.
+            if (!CouponService::claimStoreCoupon($db, (int)$coupon['id'])) {
+                error_log('[coupon] no redemption slot left for store coupon ' . (string)$coupon['code']
+                    . ' on order ' . (string)($order['order_no'] ?? ''));
+            }
             $db->query("COMMIT");
             return true;
         } catch (Throwable $e) {

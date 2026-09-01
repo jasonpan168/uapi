@@ -439,6 +439,7 @@ return [
     'merchant.api.webhook.save' => '儲存預設回呼地址',
     'merchant.api.webhook.saved' => '預設 Webhook 已儲存',
     'merchant.api.webhook.invalid' => 'Webhook URL 格式不正確',
+    'merchant.api.webhook.blocked' => 'Webhook URL 必須指向公網位址，禁止使用回環、內網、鏈路本地或雲端中繼資料位址。',
     'merchant.api.webhook.disabled_by_plan' => '目前套餐未開啟 Webhook 回呼能力，請聯絡管理員調整套餐權限。',
     'merchant.api.webhook.view_logs' => '查看回呼日誌',
     'merchant.api.tab.domain_webhook' => '網域與 Webhook',

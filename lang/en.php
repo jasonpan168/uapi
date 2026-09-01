@@ -439,6 +439,7 @@ return [
     'merchant.api.webhook.save' => 'Save Default Callback URL',
     'merchant.api.webhook.saved' => 'Default webhook saved',
     'merchant.api.webhook.invalid' => 'Invalid webhook URL format',
+    'merchant.api.webhook.blocked' => 'Webhook URL must point to a public internet address. Loopback, private, link-local and cloud metadata addresses are not allowed.',
     'merchant.api.webhook.disabled_by_plan' => 'Webhook callbacks are disabled for your current plan. Please contact admin to enable.',
     'merchant.api.webhook.view_logs' => 'View Webhook Logs',
     'merchant.api.tab.domain_webhook' => 'Domains & Webhook',

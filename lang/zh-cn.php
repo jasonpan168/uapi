@@ -439,6 +439,7 @@ return [
     'merchant.api.webhook.save' => '保存默认回调地址',
     'merchant.api.webhook.saved' => '默认 Webhook 已保存',
     'merchant.api.webhook.invalid' => 'Webhook URL 格式不正确',
+    'merchant.api.webhook.blocked' => 'Webhook URL 必须指向公网地址，禁止使用回环、内网、链路本地或云元数据地址。',
     'merchant.api.webhook.disabled_by_plan' => '当前套餐未开启 Webhook 回调能力，请联系管理员调整套餐权限。',
     'merchant.api.webhook.view_logs' => '查看回调日志',
     'merchant.api.tab.domain_webhook' => '域名与 Webhook',

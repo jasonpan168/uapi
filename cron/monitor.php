@@ -5,6 +5,7 @@ require_once __DIR__ . '/../src/Core/Database.php';
 require_once __DIR__ . '/../src/Services/CryptoService.php';
 require_once __DIR__ . '/../src/Services/WebhookService.php';
 require_once __DIR__ . '/../src/Services/StoreCouponService.php';
+require_once __DIR__ . '/../src/Services/CouponService.php';
 require_once __DIR__ . '/../src/Services/StoreReceiptService.php';
 require_once __DIR__ . '/../src/Services/NotificationDispatcher.php';
 require_once __DIR__ . '/../src/Services/ReferralService.php';
@@ -165,10 +166,7 @@ function processPayment($db, $order, $tx) {
     StoreCouponService::applyOnPaid($db, (int)$order['id']);
 
     // Admin coupon usage count
-    $couponCode = strtoupper(trim((string)($order['coupon_code'] ?? '')));
-    if ($couponCode !== '') {
-        $db->query("UPDATE admin_coupons SET used_count = used_count + 1 WHERE code = ? AND status = 'active'", [$couponCode]);
-    }
+    CouponService::countAdminRedemption($db, $order);
 
     // Balance recharge fulfillment — atomic, prevents double-credit
     if (strtolower((string)($order['source'] ?? '')) === 'recharge') {

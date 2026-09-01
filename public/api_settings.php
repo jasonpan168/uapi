@@ -9,6 +9,7 @@ require_once __DIR__ . '/../src/Core/Database.php';
 require_once __DIR__ . '/../src/Core/I18n.php';
 require_once __DIR__ . '/../src/Services/CryptoService.php';
 require_once __DIR__ . '/../src/Helper.php';
+require_once __DIR__ . '/../src/Services/UrlSafetyService.php';
 I18n::init();
 
 $db = Database::getInstance();
@@ -53,6 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $webhook_url = trim($_POST['webhook_url'] ?? '');
         if ($webhook_url !== '' && !filter_var($webhook_url, FILTER_VALIDATE_URL)) {
             header("Location: api_settings.php?msg=webhook_invalid");
+            exit;
+        }
+        // Anti-SSRF: the callback must reach a public host, never loopback,
+        // a private range or a cloud metadata endpoint.
+        if ($webhook_url !== '' && !UrlSafetyService::isSafeUrl($webhook_url)) {
+            header("Location: api_settings.php?msg=webhook_blocked");
             exit;
         }
         $db->query("UPDATE users SET webhook_url = ? WHERE id = ?", [$webhook_url ?: null, $user_id]);
@@ -417,6 +424,11 @@ $msg = $_GET['msg'] ?? '';
             <?php elseif ($msg === 'webhook_invalid'): ?>
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <?php echo __('merchant.api.webhook.invalid'); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php elseif ($msg === 'webhook_blocked'): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <?php echo __('merchant.api.webhook.blocked'); ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             <?php elseif ($msg === 'webhook_disabled'): ?>

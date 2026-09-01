@@ -8,6 +8,7 @@ require_once __DIR__ . '/../src/Core/Database.php';
 require_once __DIR__ . '/../src/Core/I18n.php';
 require_once __DIR__ . '/../src/Services/StripeService.php';
 require_once __DIR__ . '/../src/Services/User2FAService.php';
+require_once __DIR__ . '/../src/Services/CouponService.php';
 I18n::init();
 
 $db = Database::getInstance();
@@ -135,10 +136,7 @@ try {
         if ($updated->rowCount() <= 0) {
             continue;
         }
-        $couponCode = strtoupper(trim((string)($po['coupon_code'] ?? '')));
-        if ($couponCode !== '') {
-            $db->query("UPDATE admin_coupons SET used_count = used_count + 1 WHERE code = ? AND status = 'active'", [$couponCode]);
-        }
+        CouponService::countAdminRedemption($db, $po);
 
         // Fulfill plan upgrade once the order is marked paid.
         $parts = explode('-', (string)$po['merchant_order_id']);

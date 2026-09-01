@@ -3,6 +3,7 @@
 header('Content-Type: application/json');
 session_start();
 require_once __DIR__ . '/../../../../src/Core/Database.php';
+require_once __DIR__ . '/../../../../src/Services/CouponService.php';
 
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
@@ -32,12 +33,12 @@ if ($type === 'admin') {
         exit;
     }
     
-    // Check usage limit
-    if ($coupon['usage_limit'] != -1 && $coupon['used_count'] >= $coupon['usage_limit']) {
+    // Check usage limit and coupon configuration (a percent value >= 100 is refused)
+    if (!CouponService::isRedeemable($coupon)) {
         echo json_encode(['status' => 'error', 'message' => '优惠码已失效']);
         exit;
     }
-    
+
     echo json_encode([
         'status' => 'success',
         'coupon' => [

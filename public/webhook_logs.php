@@ -8,6 +8,7 @@ if (!isset($_SESSION['user_id'])) {
 require_once __DIR__ . '/../src/Core/Database.php';
 require_once __DIR__ . '/../src/Core/Http.php';
 require_once __DIR__ . '/../src/Core/I18n.php';
+require_once __DIR__ . '/../src/Services/UrlSafetyService.php';
 I18n::init();
 
 $db = Database::getInstance();
@@ -38,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'retry
 
     if (empty($order['notify_url'])) {
         $user = $db->fetch("SELECT webhook_url FROM users WHERE id = ?", [$user_id]);
-        if (!empty($user['webhook_url']) && filter_var($user['webhook_url'], FILTER_VALIDATE_URL)) {
+        if (!empty($user['webhook_url']) && UrlSafetyService::isSafeUrl($user['webhook_url'])) {
             $order['notify_url'] = $user['webhook_url'];
             $db->query("UPDATE orders SET notify_url = ? WHERE id = ?", [$order['notify_url'], $order_id]);
         }
@@ -60,6 +61,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_
     $target_url = trim($user_wh['webhook_url'] ?? '');
     if (empty($target_url) || !filter_var($target_url, FILTER_VALIDATE_URL)) {
         flash_add('error', '未配置有效的 Webhook URL，请先在 API 设置中保存 Webhook 地址。');
+        redirect_303('webhook_logs.php');
+    }
+    // Anti-SSRF: the manual test push is a merchant controlled outbound
+    // request, so it goes through the same public-host check as the real
+    // callback instead of trusting the stored value.
+    $target_check = UrlSafetyService::inspect($target_url);
+    if (!$target_check['ok']) {
+        flash_add('error', __('merchant.api.webhook.blocked') . '（' . $target_check['error'] . '）');
         redirect_303('webhook_logs.php');
     }
     // Build test payload
@@ -91,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    UrlSafetyService::hardenCurlHandle($ch, $target_check, 10);
     curl_setopt($ch, CURLOPT_USERAGENT, 'UAPI-Webhook/1.0');
     $resp = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);

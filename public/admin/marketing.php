@@ -4,6 +4,7 @@ AdminAuth::check();
 
 require_once __DIR__ . '/../../src/Core/Database.php';
 require_once __DIR__ . '/../../src/Core/I18n.php';
+require_once __DIR__ . '/../../src/Services/CouponService.php';
 I18n::init();
 $httpHelpers = __DIR__ . '/../../src/Core/Http.php';
 if (file_exists($httpHelpers)) { require_once $httpHelpers; }
@@ -50,13 +51,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $code = strtoupper(trim($_POST['code'] ?? ''));
     $prefix = strtoupper(trim($_POST['code_prefix'] ?? 'UPG'));
     $quantity = max(1, min(500, (int)($_POST['quantity'] ?? 1)));
-    $type = $_POST['type'];
-    $value = floatval($_POST['value']);
+    $type = trim((string)($_POST['type'] ?? ''));
+    $value = floatval($_POST['value'] ?? 0);
     $limit = intval($_POST['usage_limit']);
     $expiry = !empty($_POST['expiry_date']) ? $_POST['expiry_date'] : null;
     $autoGenerate = isset($_POST['auto_generate']) ? (int)$_POST['auto_generate'] === 1 : false;
     
-    if ($value <= 0) {
+    // Rejects unknown types (an unknown type would be treated as "percent" at
+    // checkout) and percent coupons of 100% or more, which would create free orders.
+    if (!CouponService::isValidConfig($type, $value)) {
         if (function_exists('flash_add')) flash_add('error', __('admin.marketing.flash.invalid_input'));
         if (function_exists('redirect_303')) { redirect_303('marketing.php'); } else { header("Location: marketing.php", true, 303); exit; }
     } else {

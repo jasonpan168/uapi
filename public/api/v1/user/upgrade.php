@@ -14,6 +14,7 @@ require_once __DIR__ . '/../../../../src/Core/Migrator.php';
 require_once __DIR__ . '/../../../../src/Services/FeeAddressAllocator.php';
 require_once __DIR__ . '/../../../../src/Services/BinancePayService.php';
 require_once __DIR__ . '/../../../../src/Services/User2FAService.php';
+require_once __DIR__ . '/../../../../src/Services/CouponService.php';
 
 try {
     $db = Database::getInstance();
@@ -77,17 +78,25 @@ try {
         if (!empty($coupon['expiry_date']) && strtotime((string)$coupon['expiry_date']) < time()) {
             throw new Exception("优惠码已过期");
         }
-        if ((int)$coupon['usage_limit'] !== -1 && (int)$coupon['used_count'] >= (int)$coupon['usage_limit']) {
+        // Covers usage limit, disabled rows and legacy coupons whose configuration
+        // (for example a percent value >= 100) is no longer acceptable.
+        if (!CouponService::isRedeemable($coupon)) {
             throw new Exception("优惠码已失效");
         }
 
-        if ((string)$coupon['type'] === 'fixed') {
-            $discount_amount = min((float)$price, (float)$coupon['value']);
-        } else {
-            $discount_amount = (float)$price * ((float)$coupon['value'] / 100);
+        $discount_amount = CouponService::discountFor($coupon['type'], $coupon['value'], (float)$price);
+        $payable_price = CouponService::payableAfterDiscount((float)$price, $discount_amount);
+
+        // A coupon must never fully cover a plan. Handing out a plan for free is
+        // an explicit admin action (admin/users.php), never a checkout outcome.
+        if ($payable_price <= 0.0) {
+            throw new Exception("优惠码不适用于该套餐");
         }
-        $discount_amount = round(max(0.0, $discount_amount), 2);
-        $payable_price = round(max(0.0, (float)$price - $discount_amount), 2);
+    }
+
+    // Defensive guard: every upgrade order must carry a real amount to pay.
+    if ($payable_price <= 0.0) {
+        throw new Exception("订单金额无效");
     }
 
     // 3. Create Order
@@ -104,9 +113,7 @@ try {
     // Amount rules:
     // fixed mode: keep micro random for collision resistance
     // derived mode: one-order-one-address, no micro random needed
-    if ($payable_price <= 0) {
-        $amount = 0;
-    } elseif ($method === 'usdt') {
+    if ($method === 'usdt') {
         $base_amount = (float)$payable_price;
         $rand_int = rand(1000, 9999);
         if ($rand_int % 10 == 0) $rand_int += rand(1, 9);
@@ -128,7 +135,7 @@ try {
         throw new Exception("USDC is not enabled");
     }
     
-    if ($method === 'usdt' && (float)$payable_price > 0) { // Legacy 'usdt' now means 'crypto'
+    if ($method === 'usdt') { // Legacy 'usdt' now means 'crypto'
         // Upgrade orders must use admin fixed receiving wallet only.
         // Do not depend on merchant derived settings / derived-chain switches.
         $allocCfg = $cfg;
@@ -195,16 +202,7 @@ try {
     $binanceDeepLink = '';
     $binanceUniversalUrl = '';
     
-    if ((float)$payable_price <= 0.0) {
-        // Fully covered by coupon, no external payment required.
-        $db->query("UPDATE orders SET status='paid', pay_provider='coupon', chain='coupon', currency='USD', paid_at=NOW(), updated_at=NOW() WHERE order_no=?", [$order_no]);
-        if ($coupon_code !== '') {
-            $db->query("UPDATE admin_coupons SET used_count = used_count + 1 WHERE code = ? AND status = 'active'", [$coupon_code]);
-        }
-        $order = $db->fetch("SELECT * FROM orders WHERE order_no = ?", [$order_no]);
-        UpgradeOrderService::fulfillPlanDirect($db, $user_id, $plan_id, $cycle);
-        $redirect_url = "/upgrade.php?payment_success=1&order=" . urlencode($order_no);
-    } elseif ($method === 'balance') {
+    if ($method === 'balance') {
         // Balance Payment — atomic with row lock to prevent double-spend
         $db->query("START TRANSACTION");
         try {
@@ -219,11 +217,14 @@ try {
                 throw new Exception('余额不足');
             }
 
+            // Take the redemption slot before fulfilling: this path settles
+            // immediately, so losing the race must abort the whole payment.
+            if ($coupon_code !== '' && !CouponService::claimAdminCoupon($db, $coupon_code)) {
+                throw new Exception("优惠码已失效");
+            }
+
             $db->query("UPDATE users SET balance = balance - ? WHERE id = ?", [$amount, $user_id]);
             $db->query("UPDATE orders SET status='paid', pay_provider='balance', paid_at=NOW(), updated_at=NOW(), chain='balance' WHERE order_no=?", [$order_no]);
-            if ($coupon_code !== '') {
-                $db->query("UPDATE admin_coupons SET used_count = used_count + 1 WHERE code = ? AND status = 'active'", [$coupon_code]);
-            }
             $db->query("COMMIT");
         } catch (Throwable $e) {
             $db->query("ROLLBACK");

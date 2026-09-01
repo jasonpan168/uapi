@@ -310,7 +310,7 @@ https://your-domain.com/login.php
 
 1. **系统设置**（`/admin/settings.php`）—— 站点名称、Logo、SEO、系统 SMTP。（注意：商户 Logo 上传仅支持 PNG/JPG/WebP，不支持 SVG。）
 2. **套餐管理**（`/admin/plans.php`）—— 套餐决定每个商户可用的链、频率限制和功能（如 Webhook 通知）。
-3. **支付配置** —— 平台级钱包/手续费地址、Binance Pay 商户密钥、Stripe API Key（均可选）。
+3. **支付配置** —— 平台级钱包/手续费地址、Binance Pay 商户密钥、Stripe API Key（均可选）。启用 Stripe 时必须填写 `stripe_webhook_secret`（`whsec_...`）：未配置前 `/api/v1/stripe/webhook.php` 一律返回 `503` 且不做任何处理，伪造的支付事件无法被接受。
 4. **用户管理**（`/admin/users.php`）—— 管理商户、余额、API Key。
 
 商户在控制台「设置 → 钱包设置」中配置**自己的**各链收款地址。

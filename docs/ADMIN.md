@@ -309,6 +309,20 @@ https://your-domain.com/admin/
 - 最低手续费
 - 手续费扣除方式（从订单金额/额外收取）
 
+#### Stripe 配置
+
+在 `/admin/settings.php` 的支付配置中填写：
+
+| 配置项 | 说明 |
+|--------|------|
+| `stripe_public_key` | Stripe 可发布密钥，`pk_...` |
+| `stripe_secret_key` | Stripe 私钥，`sk_...` |
+| `stripe_webhook_secret` | Webhook 签名密钥，`whsec_...`（**必填**） |
+
+在 Stripe 后台 Developers → Webhooks 中把回调地址指向 `/api/v1/stripe/webhook.php`，订阅 `checkout.session.completed` 事件，然后把 Stripe 生成的签名密钥填入 `stripe_webhook_secret`。
+
+> 安全提示：签名密钥是判断请求是否真的来自 Stripe 的唯一凭据。未填写或格式不正确（不是 `whsec_` 开头）时，回调端点一律返回 `503` 并且不做任何处理——否则任何人都可以伪造一条 `checkout.session.completed` 事件，带上一个待支付订单号，把订单刷成已支付、白拿余额或套餐。
+
 ---
 
 ### 通知设置

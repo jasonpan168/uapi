@@ -439,6 +439,7 @@ return [
     'merchant.api.webhook.save' => 'デフォルトコールバックアドレスを保存',
     'merchant.api.webhook.saved' => 'デフォルト Webhook を保存しました',
     'merchant.api.webhook.invalid' => 'Webhook URL の形式が正しくありません',
+    'merchant.api.webhook.blocked' => 'Webhook URL は公開インターネットのアドレスを指す必要があります。ループバック、プライベート、リンクローカル、クラウドメタデータのアドレスは使用できません。',
     'merchant.api.webhook.disabled_by_plan' => '現在のプランでは Webhook コールバック機能が利用できません。管理者にプラン権限の調整をご相談ください。',
     'merchant.api.webhook.view_logs' => 'コールバックログを見る',
     'merchant.api.tab.domain_webhook' => 'ドメインと Webhook',

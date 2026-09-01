@@ -150,7 +150,7 @@ API Key 默认绑定到请求来源域名。如需服务器到服务器调用，
 | chain | string | ✅ | 支付链（trc20/bsc/eth/polygon/optimism/arbitrum/base/avalanche） |
 | merchant_order_id | string | ✅ | 商家订单号（唯一） |
 | currency | string | ❌ | `USDT`（默认）或 `USDC`，**注意**：旧文档曾误写为 `token`，实际后端只接受 `currency` |
-| notify_url | string | ❌ | 支付成功后服务端回调 URL（Webhook） |
+| notify_url | string | ❌ | 支付成功后服务端回调 URL（Webhook）。必须是 `http://` 或 `https://` 的**公网**地址；回环（127.0.0.1）、内网（10/172.16-31/192.168）、链路本地（169.254.x.x）、云元数据（169.254.169.254、100.100.100.100）等地址会被拒绝并返回 400 |
 | domain | string | ❌ | 服务器对服务器调用时必填，且必须是已绑定的网站域名 |
 
 **请求示例：**
@@ -256,6 +256,11 @@ API Key 默认绑定到请求来源域名。如需服务器到服务器调用，
 
 当订单支付成功时，UAPI 会向你创建订单时传入的 `notify_url` 发送一个 POST 请求。
 回调使用 HMAC-SHA256 签名校验，**密钥就是你账户的 API Key**（**没有独立的 webhook secret**）。
+
+> **回调地址安全限制**：为防止 SSRF，回调地址在入库时和每次发起请求前都会被校验，
+> 必须解析到公网 IP。回环、内网、链路本地、云元数据、保留段地址一律拒绝；
+> 只允许 `http`/`https` 协议；请求**不跟随 302 跳转**，且连接会锁定在校验通过的 IP 上
+> （防 DNS rebinding）。被拒绝的投递会在「Webhook 日志」中以 `response_code = 0` 记录原因。
 
 #### 请求头
 

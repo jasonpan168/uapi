@@ -9,6 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 require_once __DIR__ . '/../src/Core/Database.php';
 require_once __DIR__ . '/../src/Core/I18n.php';
 require_once __DIR__ . '/../src/Helper.php';
+require_once __DIR__ . '/../src/Services/CouponService.php';
 I18n::init();
 
 $db = Database::getInstance();
@@ -302,7 +303,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $type = trim((string)($_POST['type'] ?? 'fixed'));
             $value = (float)($_POST['value'] ?? 0);
             $limit = (int)($_POST['usage_limit'] ?? -1);
-            if ($code === '' || $value <= 0 || !in_array($type, ['fixed', 'percent'], true)) {
+            // isValidConfig also caps percent coupons below 100%, so a store
+            // coupon can never discount a product down to a zero-amount order.
+            if ($code === '' || !CouponService::isValidConfig($type, $value)) {
                 $msg = store_alert('danger', __('merchant.marketing.error.invalid_input'));
             } else {
                 try {

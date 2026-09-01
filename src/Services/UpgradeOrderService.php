@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/NotificationDispatcher.php';
+require_once __DIR__ . '/CouponService.php';
 
 class UpgradeOrderService
 {
@@ -46,10 +47,7 @@ class UpgradeOrderService
 
         $justPaid = $updated->rowCount() > 0;
         if ($justPaid) {
-            $couponCode = strtoupper(trim((string)($order['coupon_code'] ?? '')));
-            if ($couponCode !== '') {
-                $db->query("UPDATE admin_coupons SET used_count = used_count + 1 WHERE code = ? AND status = 'active'", [$couponCode]);
-            }
+            CouponService::countAdminRedemption($db, $order);
         }
 
         $order = $db->fetch("SELECT * FROM orders WHERE id = ? LIMIT 1", [$orderId]);

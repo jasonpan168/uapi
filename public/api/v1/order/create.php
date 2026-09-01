@@ -4,6 +4,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../../../../src/Core/Database.php';
 require_once __DIR__ . '/../../../../src/Services/SecurityService.php';
 require_once __DIR__ . '/../../../../src/Services/FeeAddressAllocator.php';
+require_once __DIR__ . '/../../../../src/Services/UrlSafetyService.php';
 
 // 1. 鉴权
 $api_key = $_SERVER['HTTP_X_API_KEY'] ?? '';
@@ -165,19 +166,33 @@ if ($currency === 'USDC' && strtolower((string)$input['chain'] ?? '') === 'trc20
     exit;
 }
 
-$notify_url = $input['notify_url'] ?? '';
+$notify_url = trim((string)($input['notify_url'] ?? ''));
+$notifyFromRequest = $notify_url !== '';
 $planNotify = $db->fetch("SELECT allow_webhook_notice FROM plans WHERE id = ?", [$user['plan_id']]);
 $allowWebhookNotice = (int)($planNotify['allow_webhook_notice'] ?? 1) === 1;
-if ($allowWebhookNotice && empty($notify_url) && !empty($user['webhook_url'])) {
-    $notify_url = $user['webhook_url'];
+if ($allowWebhookNotice && $notify_url === '' && !empty($user['webhook_url'])) {
+    $notify_url = trim((string)$user['webhook_url']);
 }
 if (!$allowWebhookNotice) {
     $notify_url = '';
+    $notifyFromRequest = false;
 }
-// Validate URL if present
-if (!empty($notify_url) && !filter_var($notify_url, FILTER_VALIDATE_URL)) {
-    echo json_encode(['error' => 'Invalid notify_url']);
-    exit;
+// Anti-SSRF: a callback URL must point at a public internet host. Syntax
+// validation alone would let http://127.0.0.1 or the cloud metadata service
+// through and turn every merchant into an internal network probe.
+if ($notify_url !== '') {
+    $notifyCheck = UrlSafetyService::inspect($notify_url);
+    if (!$notifyCheck['ok']) {
+        if ($notifyFromRequest) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid notify_url: ' . $notifyCheck['error']]);
+            exit;
+        }
+        // Legacy default webhook stored before this check existed: drop it so
+        // the order can still be created, but never call it.
+        error_log("[order/create] dropped unsafe default webhook_url for user #{$user['id']}: " . $notifyCheck['error']);
+        $notify_url = '';
+    }
 }
 
 // 3. 获取商户收款模式

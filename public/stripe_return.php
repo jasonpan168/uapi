@@ -5,6 +5,7 @@ require_once __DIR__ . '/../src/Core/I18n.php';
 require_once __DIR__ . '/../src/Services/StripeService.php';
 require_once __DIR__ . '/../src/Services/NotificationDispatcher.php';
 require_once __DIR__ . '/../src/Services/ReferralService.php';
+require_once __DIR__ . '/../src/Services/CouponService.php';
 
 I18n::init();
 $is_en = I18n::getLang() === 'en';
@@ -75,10 +76,7 @@ try {
     } catch (Throwable $ignore) {
     }
     if ($updated->rowCount() > 0) {
-        $couponCode = strtoupper(trim((string)($order['coupon_code'] ?? '')));
-        if ($couponCode !== '') {
-            $db->query("UPDATE admin_coupons SET used_count = used_count + 1 WHERE code = ? AND status = 'active'", [$couponCode]);
-        }
+        CouponService::countAdminRedemption($db, $order);
     }
 
     // Balance recharge fulfillment (idempotent)

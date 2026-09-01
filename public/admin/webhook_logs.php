@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../src/Admin/AdminAuth.php';
 AdminAuth::check();
 require_once __DIR__ . '/../../src/Core/Database.php';
+require_once __DIR__ . '/../../src/Services/UrlSafetyService.php';
 $db = Database::getInstance();
 $db->autoMigrate();
 
@@ -33,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'retry
 
     if (empty($order['notify_url'])) {
         $u = $db->fetch("SELECT webhook_url FROM users WHERE id = ?", [$order['user_id']]);
-        if (!empty($u['webhook_url']) && filter_var($u['webhook_url'], FILTER_VALIDATE_URL)) {
+        if (!empty($u['webhook_url']) && UrlSafetyService::isSafeUrl($u['webhook_url'])) {
             $order['notify_url'] = $u['webhook_url'];
             $db->query("UPDATE orders SET notify_url = ? WHERE id = ?", [$order['notify_url'], $order_id]);
         }

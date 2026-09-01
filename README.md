@@ -310,7 +310,7 @@ In the admin panel (`/admin/`):
 
 1. **System settings** (`/admin/settings.php`) — site name, logo, SEO, SMTP for outgoing mail. (Note: merchant logo uploads accept PNG/JPG/WebP — SVG is not allowed.)
 2. **Plans** (`/admin/plans.php`) — subscription tiers control which chains, rate limits, and features (e.g. webhook notifications) each merchant gets.
-3. **Payment configuration** — platform-level wallets / fee addresses, Binance Pay merchant credentials, Stripe API keys (each optional).
+3. **Payment configuration** — platform-level wallets / fee addresses, Binance Pay merchant credentials, Stripe API keys (each optional). If you enable Stripe, `stripe_webhook_secret` (`whsec_...`) is mandatory: `/api/v1/stripe/webhook.php` answers `503` and processes nothing until it is set, so forged payment events cannot be accepted.
 4. **Users** (`/admin/users.php`) — manage merchants, balances, API keys.
 
 Merchants configure their **own receiving wallet addresses** per chain in the console under *Settings → Wallets*.

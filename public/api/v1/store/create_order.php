@@ -3,6 +3,7 @@
 header('Content-Type: application/json');
 require_once __DIR__ . '/../../../../src/Core/Database.php';
 require_once __DIR__ . '/../../../../src/Services/FeeAddressAllocator.php';
+require_once __DIR__ . '/../../../../src/Services/CouponService.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 $customerEmailRaw = isset($input['customer_email']) ? (string)$input['customer_email'] : (string)($input['email'] ?? '');
@@ -85,22 +86,22 @@ $discount_amount = 0;
 if (!empty($input['coupon_code'])) {
     $code = $input['coupon_code'];
     $coupon = $db->fetch("SELECT * FROM store_coupons WHERE store_id = ? AND code = ? AND status = 'active'", [$store_id, $code]);
-    
-    // Validate coupon
-    if ($coupon) {
-        $is_valid = true;
-        if ($coupon['expiry_date'] && strtotime($coupon['expiry_date']) < time()) $is_valid = false;
-        if ($coupon['usage_limit'] != -1 && $coupon['used_count'] >= $coupon['usage_limit']) $is_valid = false;
-        
-        if ($is_valid) {
-            $coupon_code = $code;
-            if ($coupon['type'] == 'fixed') {
-                $discount_amount = min($base_amount, (float)$coupon['value']);
-            } else {
-                $discount_amount = $base_amount * ((float)$coupon['value'] / 100);
-            }
-            $base_amount = max(0, $base_amount - $discount_amount);
+
+    // Validate coupon (expiry, usage limit and coupon configuration)
+    if (CouponService::isRedeemable($coupon)) {
+        $discount_amount = CouponService::discountFor($coupon['type'], $coupon['value'], $base_amount);
+        $payable_amount = CouponService::payableAfterDiscount($base_amount, $discount_amount);
+        // A zero-amount order can never be matched on-chain, so refuse the coupon
+        // instead of silently creating an unpayable order.
+        if ($payable_amount <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Coupon is not applicable to this product']);
+            exit;
         }
+        $coupon_code = $code;
+        $base_amount = $payable_amount;
+    } else {
+        $discount_amount = 0;
     }
 }
 

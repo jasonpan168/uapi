@@ -2,6 +2,7 @@
 // public/api/v1/store/verify_coupon.php
 header('Content-Type: application/json');
 require_once __DIR__ . '/../../../../src/Core/Database.php';
+require_once __DIR__ . '/../../../../src/Services/CouponService.php';
 
 $store_id = $_GET['store_id'] ?? 0;
 $code = $_GET['code'] ?? '';
@@ -26,8 +27,8 @@ if ($coupon['expiry_date'] && strtotime($coupon['expiry_date']) < time()) {
     exit;
 }
 
-// Check Usage Limit
-if ($coupon['usage_limit'] != -1 && $coupon['used_count'] >= $coupon['usage_limit']) {
+// Check usage limit and coupon configuration (a percent value >= 100 is refused)
+if (!CouponService::isRedeemable($coupon)) {
     echo json_encode(['status' => 'error', 'message' => 'Coupon Limit Reached']);
     exit;
 }

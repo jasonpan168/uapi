@@ -688,6 +688,10 @@ class Migrator {
             'bsc_api_key'=>'',
             'stripe_public_key'=>'',
             'stripe_secret_key'=>'',
+            // Stripe signing secret (whsec_...). Seeded empty on purpose: the
+            // webhook endpoint refuses every request until an operator fills
+            // this in, so a fresh install can never accept a forged event.
+            'stripe_webhook_secret'=>'',
             'enable_payment_binance'=>'0',
             'binance_pay_base_url'=>'https://bpay.binanceapi.com',
             'binance_pay_api_key'=>'',

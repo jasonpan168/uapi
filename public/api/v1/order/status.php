@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../../../src/Services/CryptoService.php';
 require_once __DIR__ . '/../../../../src/Services/SecurityService.php';
 require_once __DIR__ . '/../../../../src/Services/StoreReceiptService.php';
 require_once __DIR__ . '/../../../../src/Services/StoreCouponService.php';
+require_once __DIR__ . '/../../../../src/Services/CouponService.php';
 require_once __DIR__ . '/../../../../src/Services/NotificationDispatcher.php';
 require_once __DIR__ . '/../../../../src/Services/ReferralService.php';
 if (session_status() === PHP_SESSION_NONE) {
@@ -282,10 +283,7 @@ try {
             exit;
         }
         StoreCouponService::applyOnPaid($db, (int)$order['id']);
-        $couponCode = strtoupper(trim((string)($order['coupon_code'] ?? '')));
-        if ($couponCode !== '') {
-            $db->query("UPDATE admin_coupons SET used_count = used_count + 1 WHERE code = ? AND status = 'active'", [$couponCode]);
-        }
+        CouponService::countAdminRedemption($db, $order);
 
         // Balance recharge fulfillment (on-chain recharge) — atomic, prevents double-credit
         if (strtolower((string)($order['source'] ?? '')) === 'recharge') {

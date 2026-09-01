@@ -1,10 +1,22 @@
 <?php
 // src/Services/WebhookService.php
 
+require_once __DIR__ . '/UrlSafetyService.php';
+
 class WebhookService {
     
     public static function send($order) {
         if (empty($order['notify_url'])) {
+            return false;
+        }
+
+        // Re-validate right before the request: the row may have been written
+        // before the guard existed, edited out of band, or the hostname may
+        // now resolve to an internal address (DNS rebinding).
+        $urlCheck = UrlSafetyService::inspect($order['notify_url']);
+        if (!$urlCheck['ok']) {
+            error_log("[WebhookService] blocked unsafe notify_url for order #{$order['id']}: " . $urlCheck['error']);
+            self::logBlocked($order, $urlCheck['error']);
             return false;
         }
 
@@ -56,12 +68,9 @@ class WebhookService {
                 $headers[] = 'X-UAPI-Event-ID: ' . $eventId;
             }
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-            $scheme = strtolower((string)parse_url($order['notify_url'], PHP_URL_SCHEME));
-            if ($scheme === 'https') {
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-            }
+            // Pins the connection to the verified public IP, forbids redirects
+            // and non-HTTP protocols, and sets the timeouts.
+            UrlSafetyService::hardenCurlHandle($ch, $urlCheck, 10);
             curl_setopt($ch, CURLOPT_USERAGENT, 'UAPI-Webhook/1.0');
             
             $response = curl_exec($ch);
@@ -103,5 +112,26 @@ class WebhookService {
         }
 
         return $finalStatus === 'success';
+    }
+
+    /**
+     * Record a refused delivery so the merchant can see why nothing was sent.
+     */
+    private static function logBlocked($order, $reason) {
+        try {
+            $db = Database::getInstance();
+            $db->query(
+                "INSERT INTO webhook_logs (order_id, payload, response_code, response_body) VALUES (?, ?, ?, ?)",
+                [
+                    $order['id'],
+                    json_encode(['status' => 'blocked', 'order_no' => $order['order_no'] ?? ''], JSON_UNESCAPED_UNICODE),
+                    0,
+                    'Blocked by URL safety check: ' . $reason
+                ]
+            );
+            $db->query("UPDATE orders SET notify_status = 'failed', last_notify_at = NOW() WHERE id = ?", [$order['id']]);
+        } catch (\Throwable $e) {
+            error_log("[WebhookService] blocked-delivery log failed: " . $e->getMessage());
+        }
     }
 }
